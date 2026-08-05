@@ -5,7 +5,15 @@ const state = {
     activePanel: true,
     isGenerating: false,
     selectedFiles: [],
-    theme: localStorage.getItem('agent-theme') || 'dark',
+    theme: localStorage.getItem('agent-theme') || 'light',
+};
+
+const ICONS = {
+    sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"></circle><line x1="12" y1="2.5" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="21.5"></line><line x1="4.2" y1="4.2" x2="6" y2="6"></line><line x1="18" y1="18" x2="19.8" y2="19.8"></line><line x1="2.5" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="21.5" y2="12"></line><line x1="4.2" y1="19.8" x2="6" y2="18"></line><line x1="18" y1="6" x2="19.8" y2="4.2"></line></svg>',
+    moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"></path></svg>',
+    close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"></circle><path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5"></path></svg>',
+    bot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="2.5"></rect><line x1="12" y1="3" x2="12" y2="8"></line><circle cx="12" cy="3" r="1.1"></circle><line x1="8" y1="13.5" x2="8" y2="15"></line><line x1="16" y1="13.5" x2="16" y2="15"></line></svg>',
 };
 
 const els = {};
@@ -31,6 +39,7 @@ function cacheElements() {
     els.fileList = document.getElementById('fileList');
     els.agentPanel = document.getElementById('agentPanel');
     els.panelToggle = document.getElementById('panelToggle');
+    els.panelToggleLabel = document.getElementById('panelToggleLabel');
     els.agentStatus = document.getElementById('agentStatus');
     els.taskStatus = document.getElementById('taskStatus');
     els.toolStatus = document.getElementById('toolStatus');
@@ -66,8 +75,13 @@ function handleComposerKeydown(event) {
 }
 
 function applyTheme() {
-    document.documentElement.classList.toggle('light', state.theme === 'light');
-    els.themeBtn.textContent = state.theme === 'light' ? '☀️ Light' : '🌙 Dark';
+    document.documentElement.classList.toggle('dark', state.theme === 'dark');
+    els.themeBtn.innerHTML =
+        state.theme === 'light' ? ICONS.moon : ICONS.sun;
+    els.themeBtn.setAttribute(
+        'aria-label',
+        state.theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme',
+    );
 }
 
 function toggleTheme() {
@@ -234,7 +248,10 @@ function appendMessage(role, content, timestamp) {
     const card = document.createElement('div');
     card.className = 'message-card';
     card.innerHTML = `
-    <h4>${role === 'user' ? 'You' : 'Agent'}</h4>
+    <div class="message-card-head">
+      ${role === 'user' ? ICONS.user : ICONS.bot}
+      <h4>${role === 'user' ? 'You' : 'Agent'}</h4>
+    </div>
     <div class="message-body">${formatMessage(safeContent)}</div>
     <div class="message-meta">${timestamp ? new Date(timestamp).toLocaleString() : 'just now'}</div>
   `;
@@ -293,7 +310,7 @@ function renderFiles() {
     state.selectedFiles.forEach((file) => {
         const chip = document.createElement('div');
         chip.className = 'file-chip';
-        chip.innerHTML = `<span>${escapeHtml(file.name)}</span><button type="button" data-name="${escapeHtml(file.name)}">✕</button>`;
+        chip.innerHTML = `<span>${escapeHtml(file.name)}</span><button type="button" data-name="${escapeHtml(file.name)}">${ICONS.close}</button>`;
         chip.querySelector('button').addEventListener('click', () =>
             removeFile(file.name),
         );
@@ -311,7 +328,7 @@ function removeFile(name) {
 function toggleAgentPanel() {
     state.activePanel = !state.activePanel;
     els.agentPanel.classList.toggle('collapsed', !state.activePanel);
-    els.panelToggle.textContent = state.activePanel
+    els.panelToggleLabel.textContent = state.activePanel
         ? 'Hide agent trace'
         : 'Show agent trace';
 }

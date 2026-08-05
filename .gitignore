@@ -1,0 +1,13 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+# virtual environments
+bot_env/
+
+# python junk
+__pycache__/
+*.pyc
+
+# env files
+.env
+
+#json credentials
+ammper*.json
