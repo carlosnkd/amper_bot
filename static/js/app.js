@@ -1,9 +1,14 @@
 const API_BASE = '';
+// No auth/session layer exists yet, so every request is scoped to this single
+// hardcoded user. Replace with a real logged-in user id once auth lands.
+const USER_ID = '1';
 const state = {
     conversations: [],
     currentConversationId: null,
-    activePanel: true,
     isGenerating: false,
+    // Set to { conversationId } while a plan card is shown and awaiting the user's
+    // approval / edits / change-request -- the composer is locked until it resolves.
+    pendingPlan: null,
     selectedFiles: [],
     theme: localStorage.getItem('agent-theme') || 'light',
 };
@@ -37,14 +42,6 @@ function cacheElements() {
     els.stopBtn = document.getElementById('stopBtn');
     els.fileInput = document.getElementById('fileInput');
     els.fileList = document.getElementById('fileList');
-    els.agentPanel = document.getElementById('agentPanel');
-    els.panelToggle = document.getElementById('panelToggle');
-    els.panelToggleLabel = document.getElementById('panelToggleLabel');
-    els.agentStatus = document.getElementById('agentStatus');
-    els.taskStatus = document.getElementById('taskStatus');
-    els.toolStatus = document.getElementById('toolStatus');
-    els.sqlStatus = document.getElementById('sqlStatus');
-    els.timeline = document.getElementById('timeline');
     els.toastContainer = document.getElementById('toastContainer');
     els.emptyState = document.getElementById('emptyState');
 }
@@ -57,7 +54,6 @@ function bindEvents() {
     els.messageInput.addEventListener('keydown', handleComposerKeydown);
     els.messageInput.addEventListener('input', autoResize);
     els.fileInput.addEventListener('change', handleFileSelection);
-    els.panelToggle.addEventListener('click', toggleAgentPanel);
     els.searchInput.addEventListener('input', renderConversations);
 }
 
@@ -93,6 +89,8 @@ function toggleTheme() {
 
 function startNewConversation() {
     state.currentConversationId = null;
+    state.pendingPlan = null;
+    setComposerLocked(false);
     els.chatWindow.innerHTML = '';
     els.messageInput.value = '';
     els.messageInput.focus();
@@ -114,7 +112,9 @@ function renderEmptyState() {
 
 async function loadHistory() {
     try {
-        const response = await fetch(`${API_BASE}/get_history`);
+        const response = await fetch(
+            `${API_BASE}/get_history?user_id=${encodeURIComponent(USER_ID)}`,
+        );
         const data = await response.json();
         state.conversations = Array.isArray(data.history) ? data.history : [];
         renderConversations();
@@ -142,19 +142,65 @@ function renderConversations() {
     }
 
     filtered.forEach((conversation) => {
-        const item = document.createElement('button');
+        // A <div> wrapper (not a <button>) because it now holds two
+        // independently clickable buttons -- select and delete -- and a
+        // <button> can't legally nest another <button> inside it.
+        const item = document.createElement('div');
         item.className = `conversation-item ${conversation.conversation_id === state.currentConversationId ? 'active' : ''}`;
-        item.innerHTML = `
-      <span style="text-align:left; flex:1;">
-        <h4>${escapeHtml(conversation.summary || 'Conversation')}</h4>
-        <p>${(conversation.messages || []).length} messages</p>
-      </span>
+
+        const selectBtn = document.createElement('button');
+        selectBtn.type = 'button';
+        selectBtn.className = 'conversation-select';
+        selectBtn.innerHTML = `
+      <h4>${escapeHtml(conversation.summary || 'Conversation')}</h4>
+      <p>${(conversation.messages || []).length} messages</p>
     `;
-        item.addEventListener('click', () =>
+        selectBtn.addEventListener('click', () =>
             selectConversation(conversation.conversation_id),
         );
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'conversation-delete';
+        deleteBtn.innerHTML = ICONS.close;
+        deleteBtn.setAttribute('aria-label', 'Delete conversation');
+        deleteBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            deleteConversationItem(conversation.conversation_id);
+        });
+
+        item.appendChild(selectBtn);
+        item.appendChild(deleteBtn);
         els.conversationList.appendChild(item);
     });
+}
+
+async function deleteConversationItem(conversationId) {
+    if (!window.confirm('Delete this conversation? This cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/delete_conversation?user_id=${encodeURIComponent(USER_ID)}&conversation_id=${encodeURIComponent(conversationId)}`,
+            { method: 'DELETE' },
+        );
+        if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+
+        state.conversations = state.conversations.filter(
+            (conversation) => conversation.conversation_id !== conversationId,
+        );
+
+        if (state.currentConversationId === conversationId) {
+            startNewConversation();
+        }
+
+        renderConversations();
+        showToast('Conversation deleted', 'success');
+    } catch (error) {
+        console.error(error);
+        showToast('Unable to delete conversation', 'error');
+    }
 }
 
 async function selectConversation(conversationId) {
@@ -176,26 +222,18 @@ async function selectConversation(conversationId) {
 async function sendMessage() {
     const prompt = els.messageInput.value.trim();
     if (!prompt) return;
-    if (state.isGenerating) return;
+    if (state.isGenerating || state.pendingPlan) return;
 
     state.isGenerating = true;
     els.sendBtn.classList.add('hidden');
     els.stopBtn.classList.remove('hidden');
     appendMessage('user', prompt, new Date().toISOString());
     els.messageInput.value = '';
-    showTypingIndicator();
-    updateAgentTimeline('Research workflow started', 'active');
-    updatePanel('agentStatus', 'Active agent', 'Intent Classifier');
-    updatePanel(
-        'taskStatus',
-        'Current task',
-        'Classifying intent and routing the request',
-    );
-    updatePanel('toolStatus', 'Tools', 'Schema inspection • Query planning');
-    updatePanel('sqlStatus', 'SQL status', 'Preparing execution plan');
+    autoResize();
+    showTypingIndicator('Planning the work…');
 
     const formData = new FormData();
-    formData.append('user_id', '1');
+    formData.append('user_id', USER_ID);
     formData.append('query', prompt);
     if (state.currentConversationId)
         formData.append('conversation_id', state.currentConversationId);
@@ -208,22 +246,22 @@ async function sendMessage() {
         });
         const data = await response.json();
         removeTypingIndicator();
-        appendMessage(
-            'assistant',
-            data.result || data.summary || 'No answer available',
-            new Date().toISOString(),
-        );
         if (!state.currentConversationId) {
             state.currentConversationId = data.conversation_id;
         }
+
+        if (data.error || !data.plan) {
+            appendMessage(
+                'assistant',
+                data.error || 'I could not come up with a plan for that.',
+                new Date().toISOString(),
+            );
+        } else {
+            renderPlanMessage(data.plan, data.conversation_id, prompt);
+        }
         await loadHistory();
-        updateAgentTimeline('Research workflow completed', 'done');
-        updatePanel('agentStatus', 'Active agent', 'Completed');
-        updatePanel('taskStatus', 'Current task', 'Final answer returned');
-        showToast('Response ready', 'success');
     } catch (error) {
         removeTypingIndicator();
-        updateAgentTimeline('Research workflow failed', 'error');
         showToast('The request could not be completed', 'error');
     } finally {
         state.isGenerating = false;
@@ -234,10 +272,331 @@ async function sendMessage() {
 
 function stopGeneration() {
     state.isGenerating = false;
+    state.pendingPlan = null;
+    setComposerLocked(false);
     removeTypingIndicator();
     els.sendBtn.classList.remove('hidden');
     els.stopBtn.classList.add('hidden');
-    updateAgentTimeline('Generation stopped by user', 'error');
+}
+
+function setComposerLocked(locked, hint) {
+    els.messageInput.disabled = locked;
+    els.sendBtn.disabled = locked;
+    els.messageInput.placeholder = locked
+        ? hint || 'Respond to the plan above to continue'
+        : 'Ask about your data, schema, or research question...';
+}
+
+function renderPlanMessage(plan, conversationId, ticketText) {
+    const assumptions = plan.assumptions || [];
+    const tasks = plan.tasks || [];
+
+    const row = document.createElement('div');
+    row.className = 'message-row';
+    const card = document.createElement('div');
+    card.className = 'message-card plan-card';
+    card.dataset.conversationId = conversationId;
+    card.dataset.ticket = ticketText;
+
+    card.innerHTML = `
+    <div class="message-card-head">
+      ${ICONS.bot}
+      <h4>Agent</h4>
+    </div>
+    <p class="plan-intro">Here's my proposed plan. Edit any task inline if you'd like, then approve to start building.</p>
+    ${
+        assumptions.length
+            ? `<div class="plan-section">
+        <h5>Assumptions</h5>
+        <ul class="plan-assumptions">${assumptions.map((a) => `<li>${escapeHtml(a)}</li>`).join('')}</ul>
+      </div>`
+            : ''
+    }
+    <div class="plan-section">
+      <h5>Tasks</h5>
+      <ul class="plan-tasks"></ul>
+    </div>
+    <div class="plan-feedback hidden">
+      <textarea placeholder="What should change about this plan?"></textarea>
+      <div class="plan-actions">
+        <button type="button" class="plan-feedback-submit">Submit changes</button>
+        <button type="button" class="plan-feedback-cancel">Cancel</button>
+      </div>
+    </div>
+    <div class="plan-actions plan-actions-main">
+      <button type="button" class="plan-approve">Approve &amp; Build</button>
+      <button type="button" class="plan-request-changes">Request changes</button>
+    </div>
+    <div class="message-meta">${new Date().toLocaleString()}</div>
+  `;
+
+    const taskList = card.querySelector('.plan-tasks');
+    tasks.forEach((task) => {
+        const item = document.createElement('li');
+        item.className = 'plan-task';
+        item.dataset.taskId = task.id || '';
+        item.innerHTML = `
+      <span class="plan-task-id">${escapeHtml(task.id || '')}</span>
+      <div class="plan-task-desc" contenteditable="true">${escapeHtml(task.description || '')}</div>
+    `;
+        taskList.appendChild(item);
+    });
+
+    card
+        .querySelector('.plan-approve')
+        .addEventListener('click', () => approvePlan(card));
+    card.querySelector('.plan-request-changes').addEventListener('click', () => {
+        card.querySelector('.plan-feedback').classList.remove('hidden');
+        card.querySelector('.plan-actions-main').classList.add('hidden');
+        card.querySelector('.plan-feedback textarea').focus();
+    });
+    card.querySelector('.plan-feedback-cancel').addEventListener('click', () => {
+        card.querySelector('.plan-feedback').classList.add('hidden');
+        card.querySelector('.plan-actions-main').classList.remove('hidden');
+    });
+    card
+        .querySelector('.plan-feedback-submit')
+        .addEventListener('click', () => requestPlanChanges(card));
+
+    row.appendChild(card);
+    els.chatWindow.appendChild(row);
+    els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
+
+    state.pendingPlan = { conversationId };
+    setComposerLocked(true);
+}
+
+function lockPlanCard(card) {
+    card.querySelectorAll('button').forEach((btn) => (btn.disabled = true));
+    card.querySelectorAll('[contenteditable]').forEach((el) => {
+        el.contentEditable = 'false';
+    });
+    card.classList.add('plan-resolved');
+}
+
+function collectEditedPlan(card) {
+    const assumptions = Array.from(
+        card.querySelectorAll('.plan-assumptions li'),
+    ).map((li) => li.textContent.trim());
+    const tasks = Array.from(card.querySelectorAll('.plan-task')).map((item) => ({
+        id: item.dataset.taskId,
+        description: item.querySelector('.plan-task-desc').textContent.trim(),
+    }));
+    return { assumptions, tasks };
+}
+
+async function approvePlan(card) {
+    const conversationId = card.dataset.conversationId;
+    const ticketText = card.dataset.ticket;
+    const editedPlan = collectEditedPlan(card);
+
+    lockPlanCard(card);
+    state.isGenerating = true;
+
+    const live = createLiveBuildMessage();
+
+    const formData = new FormData();
+    formData.append('user_id', USER_ID);
+    formData.append('conversation_id', conversationId);
+    formData.append('ticket', ticketText);
+    formData.append('plan', JSON.stringify(editedPlan));
+
+    try {
+        const response = await fetch(`${API_BASE}/build/stream`, {
+            method: 'POST',
+            body: formData,
+        });
+        if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+
+        let sawResult = false;
+        await consumeEventStream(response, (event) => {
+            if (event.type === 'phase') {
+                live.setStatus(event.label);
+            } else if (event.type === 'file') {
+                live.upsertFile(event.path, event.content);
+            } else if (event.type === 'result') {
+                sawResult = true;
+                live.finish(event);
+                showToast(
+                    event.approved ? 'Build complete' : 'Build finished with open feedback',
+                    event.approved ? 'success' : 'error',
+                );
+            } else if (event.type === 'error') {
+                sawResult = true;
+                live.fail(event.message);
+                showToast('The build could not be completed', 'error');
+            }
+        });
+        if (!sawResult) {
+            live.fail('The connection ended before the build finished.');
+        }
+        await loadHistory();
+    } catch (error) {
+        live.fail('The build could not be completed');
+        showToast('The build could not be completed', 'error');
+    } finally {
+        state.isGenerating = false;
+        state.pendingPlan = null;
+        setComposerLocked(false);
+    }
+}
+
+async function requestPlanChanges(card) {
+    const conversationId = card.dataset.conversationId;
+    const feedback = card.querySelector('.plan-feedback textarea').value.trim();
+    if (!feedback) return;
+
+    lockPlanCard(card);
+    appendMessage('user', feedback, new Date().toISOString());
+    showTypingIndicator('Revising the plan…');
+
+    const formData = new FormData();
+    formData.append('user_id', USER_ID);
+    formData.append('conversation_id', conversationId);
+    formData.append('feedback', feedback);
+
+    try {
+        const response = await fetch(`${API_BASE}/replan`, {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await response.json();
+        removeTypingIndicator();
+        if (data.error || !data.plan) {
+            appendMessage(
+                'assistant',
+                data.error || 'I could not revise the plan.',
+                new Date().toISOString(),
+            );
+            state.pendingPlan = null;
+            setComposerLocked(false);
+        } else {
+            renderPlanMessage(data.plan, conversationId, card.dataset.ticket);
+        }
+        await loadHistory();
+    } catch (error) {
+        removeTypingIndicator();
+        showToast('The request could not be completed', 'error');
+        state.pendingPlan = null;
+        setComposerLocked(false);
+    }
+}
+
+/**
+ * Reads a fetch() Response whose body is a `text/event-stream` (SSE) of
+ * `data: <json>\n\n` frames, calling `onEvent(parsedJson)` for each one as it arrives.
+ * Not EventSource -- this endpoint is POST (form data), which EventSource can't send --
+ * so the stream is parsed by hand off the response's own ReadableStream instead.
+ */
+async function consumeEventStream(response, onEvent) {
+    if (!response.body || !response.body.getReader) {
+        // No streaming support in this browser/response -- fall back to parsing
+        // whatever arrived as one block, so the UI still ends up in a final state.
+        const text = await response.text();
+        text.split('\n\n').forEach((chunk) => parseSseChunk(chunk, onEvent));
+        return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split('\n\n');
+        buffer = chunks.pop();
+        chunks.forEach((chunk) => parseSseChunk(chunk, onEvent));
+    }
+    if (buffer.trim()) parseSseChunk(buffer, onEvent);
+}
+
+function parseSseChunk(chunk, onEvent) {
+    const dataLine = chunk.split('\n').find((line) => line.startsWith('data:'));
+    if (!dataLine) return;
+    const jsonText = dataLine.slice(5).trim();
+    if (!jsonText) return;
+    try {
+        onEvent(JSON.parse(jsonText));
+    } catch (error) {
+        console.error('Malformed stream event', error, jsonText);
+    }
+}
+
+/**
+ * A chat bubble that fills in live as /build/stream sends events: a status line that
+ * updates in place (replacing the old fixed "typing" dots for this phase), and a file
+ * appearing with its code the moment the Coder writes it -- instead of the whole
+ * response only showing up once the entire build finishes.
+ */
+function createLiveBuildMessage() {
+    const row = document.createElement('div');
+    row.className = 'message-row';
+    const card = document.createElement('div');
+    card.className = 'message-card build-live';
+    card.innerHTML = `
+    <div class="message-card-head">${ICONS.bot}<h4>Agent</h4></div>
+    <div class="build-status">
+      <span class="build-status-dot"></span>
+      <span class="build-status-label">Starting…</span>
+    </div>
+    <div class="build-files"></div>
+    <div class="build-summary hidden"></div>
+    <div class="message-meta"></div>
+  `;
+    row.appendChild(card);
+    els.chatWindow.appendChild(row);
+    els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
+
+    const statusRow = card.querySelector('.build-status');
+    const statusLabel = card.querySelector('.build-status-label');
+    const filesEl = card.querySelector('.build-files');
+    const summaryEl = card.querySelector('.build-summary');
+    const metaEl = card.querySelector('.message-meta');
+    const fileBlocks = new Map();
+
+    const scrollDown = () => {
+        els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
+    };
+
+    return {
+        setStatus(label) {
+            statusLabel.textContent = label;
+            scrollDown();
+        },
+        upsertFile(path, content) {
+            let block = fileBlocks.get(path);
+            if (!block) {
+                block = document.createElement('div');
+                block.className = 'build-file';
+                block.innerHTML = `
+          <div class="build-file-head"><code>${escapeHtml(path)}</code></div>
+          <pre><code class="build-file-code"></code></pre>
+        `;
+                filesEl.appendChild(block);
+                fileBlocks.set(path, block);
+            }
+            block.querySelector('.build-file-code').textContent = content;
+            scrollDown();
+        },
+        finish(event) {
+            card.classList.remove('build-live');
+            statusRow.classList.add('hidden');
+            summaryEl.classList.remove('hidden');
+            summaryEl.innerHTML = formatMessage(event.result || event.error || 'No result');
+            if (event.approved === false) card.classList.add('build-not-approved');
+            metaEl.textContent = new Date().toLocaleString();
+            scrollDown();
+        },
+        fail(message) {
+            card.classList.remove('build-live');
+            statusRow.classList.add('build-error');
+            statusLabel.textContent = message || 'Build failed';
+            metaEl.textContent = new Date().toLocaleString();
+            scrollDown();
+        },
+    };
 }
 
 function appendMessage(role, content, timestamp) {
@@ -279,12 +638,14 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
-function showTypingIndicator() {
+function showTypingIndicator(label) {
     removeTypingIndicator();
     const node = document.createElement('div');
     node.className = 'typing-indicator';
     node.id = 'typingIndicator';
-    node.innerHTML = '<span></span><span></span><span></span>';
+    node.innerHTML = `<span></span><span></span><span></span>${
+        label ? `<em>${escapeHtml(label)}</em>` : ''
+    }`;
     els.chatWindow.appendChild(node);
     els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
 }
@@ -323,27 +684,6 @@ function removeFile(name) {
         (file) => file.name !== name,
     );
     renderFiles();
-}
-
-function toggleAgentPanel() {
-    state.activePanel = !state.activePanel;
-    els.agentPanel.classList.toggle('collapsed', !state.activePanel);
-    els.panelToggleLabel.textContent = state.activePanel
-        ? 'Hide agent trace'
-        : 'Show agent trace';
-}
-
-function updatePanel(containerId, title, value) {
-    const element = document.getElementById(containerId);
-    if (element)
-        element.innerHTML = `<h4>${escapeHtml(title)}</h4><p>${escapeHtml(value)}</p>`;
-}
-
-function updateAgentTimeline(message, stateValue) {
-    const item = document.createElement('li');
-    item.className = `timeline-item ${stateValue}`;
-    item.innerHTML = `<span class="dot"></span><span>${escapeHtml(message)}</span>`;
-    els.timeline.prepend(item);
 }
 
 function showToast(message, type = 'success') {

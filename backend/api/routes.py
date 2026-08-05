@@ -1,8 +1,12 @@
+import asyncio
+import json
+import queue
 import uuid
 from backend.main import get_db
-from fastapi import APIRouter, UploadFile, File, Depends
+from fastapi import APIRouter, UploadFile, File, Form, Depends
+from fastapi.responses import StreamingResponse
 from typing import Optional
-from backend.services.research import run_query
+from backend.services.research import build_from_plan, build_from_plan_worker, revise_plan, start_plan
 from sqlalchemy.orm import Session
 from backend.services.chat import (
     record_message,
@@ -14,26 +18,188 @@ from agents.ticket_pipeline.main import run_ticket_pipeline
 
 router = APIRouter()
 
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload)}\n\n"
+
+
+def _format_plan_message(plan: dict) -> str:
+    """Renders a plan as chat-friendly markdown, for the persisted message history."""
+    if not plan:
+        return "I couldn't come up with a plan for that -- could you rephrase the ticket?"
+
+    lines = ["Here's my proposed plan -- let me know if you'd like changes, or approve it to start building.", ""]
+    assumptions = plan.get("assumptions") or []
+    if assumptions:
+        lines.append("**Assumptions:**")
+        lines.extend(f"- {a}" for a in assumptions)
+        lines.append("")
+
+    tasks = plan.get("tasks") or []
+    if tasks:
+        lines.append("**Tasks:**")
+        lines.extend(f"- **{t.get('id')}**: {t.get('description')}" for t in tasks)
+
+    return "\n".join(lines)
+
+
 @router.post('/run')
 async def run_agent(
-    user_id: str,
-    query: str,
+    user_id: str = Form(...),
+    query: str = Form(...),
     file: Optional[UploadFile] = File(None),
-    conversation_id: Optional[str] = None,
+    conversation_id: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
+    """
+    Phase 1 of the ticket pipeline: runs the Planner only and returns the proposed plan
+    for approval. No code is written yet -- see /build for phase 2, which requires the
+    plan this endpoint returns (optionally edited by the user first).
+    """
     if not conversation_id:
         conversation_id = str(uuid.uuid4())
     if file:
         pass
 
-    result, summary = run_query()
+    result, summary = await start_plan(user_id, query, conversation_id)
 
     record_message(user_id, conversation_id, "user", query)
-    record_message(user_id, conversation_id, "assistant", result)
+    record_message(user_id, conversation_id, "assistant", _format_plan_message(result.get("plan")))
     end_conversation(user_id, conversation_id, db, summary)
 
-    return {"result": result}
+    return {
+        "conversation_id": conversation_id,
+        "plan": result.get("plan"),
+        "error": result.get("error"),
+    }
+
+
+@router.post('/replan')
+async def replan(
+    user_id: str = Form(...),
+    conversation_id: str = Form(...),
+    feedback: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """
+    "Request changes" on a plan the user already saw: re-runs the Planner with the
+    user's feedback against the pending plan for this conversation.
+    """
+    result, summary = await revise_plan(user_id, conversation_id, feedback)
+
+    record_message(user_id, conversation_id, "user", feedback)
+    record_message(user_id, conversation_id, "assistant", _format_plan_message(result.get("plan")))
+    end_conversation(user_id, conversation_id, db, summary)
+
+    return {
+        "conversation_id": conversation_id,
+        "plan": result.get("plan"),
+        "error": result.get("error"),
+    }
+
+
+@router.post('/build')
+async def build(
+    user_id: str = Form(...),
+    conversation_id: str = Form(...),
+    plan: str = Form(...),
+    ticket: Optional[str] = Form(None),
+    max_retries: int = Form(3),
+    db: Session = Depends(get_db)
+):
+    """
+    Phase 2 of the ticket pipeline: runs Coder -> Reviewer against the approved plan
+    (`plan` is the JSON from /run or /replan, possibly hand-edited by the user in the UI).
+    """
+    try:
+        plan_obj = json.loads(plan)
+    except json.JSONDecodeError:
+        return {"error": "plan is not valid JSON"}
+
+    result, summary = await build_from_plan(
+        user_id, conversation_id, plan_obj, ticket=ticket, max_retries=max_retries
+    )
+
+    response_text = result.get("code_summary") or result.get("error") or "No result"
+    record_message(user_id, conversation_id, "assistant", response_text)
+    end_conversation(user_id, conversation_id, db, summary)
+
+    return {
+        "result": response_text,
+        "approved": result.get("approved"),
+        "retries_used": result.get("retries_used"),
+        "error": result.get("error"),
+    }
+
+
+@router.post('/build/stream')
+async def build_stream(
+    user_id: str = Form(...),
+    conversation_id: str = Form(...),
+    plan: str = Form(...),
+    ticket: Optional[str] = Form(None),
+    max_retries: int = Form(3),
+    db: Session = Depends(get_db)
+):
+    """
+    Streaming counterpart to /build: same phase 2 (Coder -> Reviewer), but pushed to the
+    client as Server-Sent Events as they happen instead of one response at the end --
+    "phase" events (a short status label), "file" events (a file the Coder just wrote,
+    with its full content, for progressive rendering), and a final "result" or "error"
+    event. The pipeline itself runs on a worker thread; see research.build_from_plan_worker
+    and agents/ticket_pipeline/events.py for how progress crosses that thread boundary.
+    """
+    try:
+        plan_obj = json.loads(plan)
+    except json.JSONDecodeError:
+        async def bad_plan_stream():
+            yield _sse({"type": "error", "message": "plan is not valid JSON"})
+        return StreamingResponse(bad_plan_stream(), media_type="text/event-stream")
+
+    async def event_stream():
+        progress_queue: "queue.Queue[dict]" = queue.Queue()
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(
+            None,
+            build_from_plan_worker,
+            user_id,
+            conversation_id,
+            plan_obj,
+            ticket,
+            max_retries,
+            progress_queue,
+        )
+
+        while True:
+            event = await loop.run_in_executor(None, progress_queue.get)
+
+            if event["type"] == "done":
+                result = event["result"]
+                summary = event["summary"]
+                response_text = result.get("code_summary") or result.get("error") or "No result"
+                record_message(user_id, conversation_id, "assistant", response_text)
+                end_conversation(user_id, conversation_id, db, summary)
+                yield _sse({
+                    "type": "result",
+                    "result": response_text,
+                    "approved": result.get("approved"),
+                    "retries_used": result.get("retries_used"),
+                    "error": result.get("error"),
+                })
+                return
+
+            if event["type"] == "error":
+                yield _sse(event)
+                return
+
+            yield _sse(event)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
 
 @router.post('/run_ticket')
 async def run_ticket(
@@ -66,8 +232,8 @@ def end_chat(user_id: str, conversation_id: str, db: Session = Depends(get_db)):
 
 @router.get('/get_history')
 def history(user_id: str, db: Session = Depends(get_db)):
-    return load_user_history(user_id, db)
+    return load_user_history(db, user_id)
 
 @router.delete('/delete_conversation')
-def delete_conversation_endpoint(conversation_id: str, db: Session = Depends(get_db)):
-    return delete_conversation(conversation_id, db)
+def delete_conversation_endpoint(user_id: str, conversation_id: str, db: Session = Depends(get_db)):
+    return delete_conversation(user_id, db, conversation_id)

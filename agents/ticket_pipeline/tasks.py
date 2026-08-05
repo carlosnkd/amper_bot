@@ -7,21 +7,37 @@ several times per ticket (once per retry) with different feedback baked into the
 description each time, so the Task objects can't be reused as static singletons here.
 """
 
+import json
+
 from crewai import Task
 
 from agents.ticket_pipeline.agent import coder_agent, planner_agent, reviewer_agent
 
 
-def build_plan_task() -> Task:
+def build_plan_task(feedback: str | None = None, previous_plan: dict | None = None) -> Task:
+    revision_block = (
+        f"""
+            The user already saw this proposed plan and asked for changes instead of
+            approving it. Revise it to address their feedback exactly -- keep whatever
+            parts of the previous plan still apply, don't restart from scratch:
+
+            Previous plan (JSON): {json.dumps(previous_plan) if previous_plan else "(none)"}
+
+            User's requested changes: {feedback}
+        """
+        if feedback
+        else ""
+    )
+
     return Task(
         name="Plan Ticket",
-        description="""
-            Feature ticket for this turn: {ticket}
+        description=f"""
+            Feature ticket for this turn: {{ticket}}
 
             Conversation history (previous tickets and whether their plan was ultimately
             approved), oldest first. Empty if this is the first turn:
-            {history}
-
+            {{history}}
+            {revision_block}
             Break the ticket down into a concrete, ordered list of technical tasks that a
             Coder agent can implement directly, with no further clarification needed.
 

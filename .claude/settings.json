@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Read(//c/Users/hp/AppData/Local/Programs/Python/Python312/Lib/site-packages/crewai/events/**)",
+      "Read(//c/Users/hp/AppData/Local/Programs/Python/Python312/Lib/site-packages/crewai/events/types/**)",
+      "Bash(python -m py_compile agents/ticket_pipeline/events.py agents/ticket_pipeline/flow.py backend/services/research.py backend/api/routes.py)",
+      "Bash(python -m py_compile agents/ticket_pipeline/events.py agents/ticket_pipeline/flow.py agents/ticket_pipeline/main.py backend/services/research.py backend/api/routes.py)",
+      "Bash(./bot_env/Scripts/python.exe -c \"from backend.main import init_db; init_db\\(\\); print\\('OK: tables created'\\)\")"
+    ]
+  }
+}
