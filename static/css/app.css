@@ -916,6 +916,92 @@ svg {
     display: none !important;
 }
 
+/* ---------- Confirm modal ---------- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 24, 40, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    padding: 16px;
+    animation: modal-fade 160ms ease;
+}
+:root.dark .modal-overlay {
+    background: rgba(0, 0, 0, 0.6);
+}
+@keyframes modal-fade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+.modal-card {
+    width: 100%;
+    max-width: 360px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-hover);
+    animation: modal-pop 160ms ease;
+}
+@keyframes modal-pop {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+.modal-card h3 {
+    margin: 0 0 8px;
+    font-size: 1.02rem;
+}
+.modal-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+}
+.modal-actions button {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 0.86rem;
+    font-weight: 600;
+    transition:
+        background 200ms ease,
+        box-shadow 200ms ease;
+}
+.modal-cancel {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+.modal-cancel:hover {
+    background: var(--surface-alt);
+}
+.modal-confirm {
+    background: var(--danger);
+    color: #fff;
+    border: none;
+}
+.modal-confirm:hover {
+    box-shadow: var(--shadow-hover);
+    filter: brightness(1.05);
+}
+
 @media (max-width: 980px) {
     .sidebar {
         width: 240px;

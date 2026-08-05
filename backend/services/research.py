@@ -1,26 +1,88 @@
 import asyncio
+import logging
 import queue
+from typing import Awaitable, Callable
 
 from agents.ticket_pipeline.main import build_ticket, plan_ticket, run_ticket_pipeline
+from backend.services.bot.intent import Intent
 from backend.services.bot.summary import Summary
 from backend.cache.conversation_cache import get_conversation
 from backend.cache.plan_cache import clear_pending_plan, get_pending_plan, set_pending_plan
 
+logger = logging.getLogger(__name__)
+
 summaryClass = Summary()
+intentClassifier = Intent()
 
 
-async def start_plan(user_id: str, query: str, conversation_id: str):
+async def _safe_summary(conversation_history, source_text: str) -> str:
+    """
+    Wraps Summary.generate_summary() so a hiccup in this one LLM call (rate limit,
+    transient 400/500 from the API, etc.) never takes down the whole request -- the
+    summary is only a cosmetic sidebar title, it shouldn't be able to discard an
+    otherwise-successful plan or chat reply. Falls back to a truncated version of
+    whatever text triggered this turn.
+    """
+    try:
+        return await summaryClass.generate_summary(conversation_history, source_text)
+    except Exception:
+        logger.exception("Summary generation failed, falling back to a truncated title")
+        fallback = (source_text or "Conversation").strip().replace("\n", " ")
+        return fallback[:60] + ("…" if len(fallback) > 60 else "")
+
+
+PhaseCallback = Callable[[str], Awaitable[None]] | None
+
+
+async def _emit(on_phase: PhaseCallback, message: str) -> None:
+    if on_phase:
+        await on_phase(message)
+
+
+async def start_plan(
+    user_id: str, query: str, conversation_id: str, on_phase: PhaseCallback = None
+):
     """
     Phase 1: runs the Planner only (fast -- a single LLM call, not the whole
     Planner -> Coder -> Reviewer pipeline) and parks the result in plan_cache so /build
     or /replan can pick it back up once the user responds to it.
+
+    First gated by a cheap intent check so chit-chat ("what can you do") never reaches
+    the Planner -- planner_agent is written to always produce a plan and never ask for
+    clarification, so without this gate a casual message would come back as a fake
+    implementation plan instead of a direct answer. See backend/services/bot/intent.py.
+
+    `on_phase`, if given, is awaited with a short human-readable label before each major
+    step -- /run/stream uses this to push real progress to the UI instead of a static
+    "Thinking…" for the whole request. Optional and unused by plain /run.
     """
+    await _emit(on_phase, "Reading your message…")
+    conversation_history = get_conversation(user_id, conversation_id)
+    classification = await intentClassifier.classify(conversation_history, query)
+    intent = classification.get("intent")
+
+    # CHAT and SNIPPET are both answered directly, skipping the Planner entirely --
+    # SNIPPET is a self-contained ask ("give me a FastAPI script") that doesn't touch
+    # this product's own codebase, so there's nothing here to plan or review. See
+    # backend/services/bot/intent.py for what distinguishes the two.
+    if intent in ("CHAT", "SNIPPET"):
+        await _emit(on_phase, "Writing that up…" if intent == "SNIPPET" else "Got it — replying…")
+        summary = await _safe_summary(conversation_history, query)
+        result = {
+            "conversation_id": conversation_id,
+            "plan": None,
+            "chat_reply": classification.get("reply") or "I'm not sure how to help with that yet.",
+            "error": None,
+        }
+        return result, summary
+
+    await _emit(on_phase, "Planning the work…")
     result = await plan_ticket(query, conversation_id)
     if result.get("plan"):
         set_pending_plan(conversation_id, query, result["plan"])
 
-    conversation_history = get_conversation(user_id, conversation_id)
-    summary = await summaryClass.generate_summary(conversation_history, query)
+    await _emit(on_phase, "Wrapping up…")
+    summary = await _safe_summary(conversation_history, query)
 
     return result, summary
 
@@ -41,7 +103,7 @@ async def revise_plan(user_id: str, conversation_id: str, feedback: str):
         set_pending_plan(conversation_id, ticket, result["plan"])
 
     conversation_history = get_conversation(user_id, conversation_id)
-    summary = await summaryClass.generate_summary(conversation_history, feedback)
+    summary = await _safe_summary(conversation_history, feedback)
 
     return result, summary
 
@@ -65,7 +127,7 @@ async def build_from_plan(
 
     conversation_history = get_conversation(user_id, conversation_id)
     summary_source = result.get("code_summary") or resolved_ticket or "Implementation"
-    summary = await summaryClass.generate_summary(conversation_history, summary_source)
+    summary = await _safe_summary(conversation_history, summary_source)
 
     return result, summary
 
@@ -108,6 +170,6 @@ async def run_query(user_id: str, query: str, conversation_id: str, max_retries:
     result = await run_ticket_pipeline(query, conversation_id, max_retries=max_retries)
 
     conversation_history = get_conversation(user_id, conversation_id)
-    summary = await summaryClass.generate_summary(conversation_history, query)
+    summary = await _safe_summary(conversation_history, query)
 
     return result, summary

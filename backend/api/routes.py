@@ -63,15 +63,101 @@ async def run_agent(
 
     result, summary = await start_plan(user_id, query, conversation_id)
 
+    # chat_reply is set when the intent gate in start_plan() classified this message
+    # as chit-chat rather than a ticket -- the Planner never ran, so there's no plan
+    # to render, just this direct reply.
+    chat_reply = result.get("chat_reply")
+    assistant_message = chat_reply if chat_reply is not None else _format_plan_message(result.get("plan"))
+
     record_message(user_id, conversation_id, "user", query)
-    record_message(user_id, conversation_id, "assistant", _format_plan_message(result.get("plan")))
+    record_message(user_id, conversation_id, "assistant", assistant_message)
     end_conversation(user_id, conversation_id, db, summary)
 
     return {
         "conversation_id": conversation_id,
         "plan": result.get("plan"),
+        "reply": chat_reply,
         "error": result.get("error"),
     }
+
+
+@router.post('/run/stream')
+async def run_agent_stream(
+    user_id: str = Form(...),
+    query: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+    conversation_id: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Streaming counterpart to /run: same intent-check -> Planner (or direct chit-chat
+    reply) work, but pushes real "phase" events to the client as they happen -- e.g.
+    "Reading your message…" -> "Planning the work…" -> "Wrapping up…" -- instead of the
+    client seeing one static "Thinking…" for the whole request. Ends with a "result"
+    event carrying the same shape /run returns, or an "error" event.
+
+    Unlike /build/stream, start_plan() is plain async work (no CrewAI event-bus/thread
+    crossing involved), so phase events are pushed straight into an asyncio.Queue from
+    the on_phase callback -- no worker thread needed.
+    """
+    if not conversation_id:
+        conversation_id = str(uuid.uuid4())
+    if file:
+        pass
+
+    async def event_stream():
+        phase_queue: "asyncio.Queue[dict]" = asyncio.Queue()
+
+        async def on_phase(message: str):
+            await phase_queue.put({"type": "phase", "message": message})
+
+        async def run_and_finish():
+            try:
+                result, summary = await start_plan(user_id, query, conversation_id, on_phase=on_phase)
+                await phase_queue.put({"type": "done", "result": result, "summary": summary})
+            except Exception as exc:  # noqa: BLE001 -- reported to the client as a stream event
+                await phase_queue.put({"type": "error", "message": str(exc)})
+
+        task = asyncio.create_task(run_and_finish())
+
+        try:
+            while True:
+                event = await phase_queue.get()
+
+                if event["type"] == "done":
+                    result = event["result"]
+                    summary = event["summary"]
+                    chat_reply = result.get("chat_reply")
+                    assistant_message = (
+                        chat_reply if chat_reply is not None else _format_plan_message(result.get("plan"))
+                    )
+
+                    record_message(user_id, conversation_id, "user", query)
+                    record_message(user_id, conversation_id, "assistant", assistant_message)
+                    end_conversation(user_id, conversation_id, db, summary)
+
+                    yield _sse({
+                        "type": "result",
+                        "conversation_id": conversation_id,
+                        "plan": result.get("plan"),
+                        "reply": chat_reply,
+                        "error": result.get("error"),
+                    })
+                    return
+
+                if event["type"] == "error":
+                    yield _sse(event)
+                    return
+
+                yield _sse(event)
+        finally:
+            task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post('/replan')

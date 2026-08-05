@@ -27,6 +27,7 @@ function init() {
     cacheElements();
     bindEvents();
     applyTheme();
+    renderEmptyState();
     loadHistory();
 }
 
@@ -44,6 +45,11 @@ function cacheElements() {
     els.fileList = document.getElementById('fileList');
     els.toastContainer = document.getElementById('toastContainer');
     els.emptyState = document.getElementById('emptyState');
+    els.confirmModal = document.getElementById('confirmModal');
+    els.confirmModalTitle = document.getElementById('confirmModalTitle');
+    els.confirmModalMessage = document.getElementById('confirmModalMessage');
+    els.confirmModalCancel = document.getElementById('confirmModalCancel');
+    els.confirmModalConfirm = document.getElementById('confirmModalConfirm');
 }
 
 function bindEvents() {
@@ -55,6 +61,41 @@ function bindEvents() {
     els.messageInput.addEventListener('input', autoResize);
     els.fileInput.addEventListener('change', handleFileSelection);
     els.searchInput.addEventListener('input', renderConversations);
+    els.confirmModalCancel.addEventListener('click', () => resolveConfirm(false));
+    els.confirmModalConfirm.addEventListener('click', () => resolveConfirm(true));
+    els.confirmModal.addEventListener('click', (event) => {
+        if (event.target === els.confirmModal) resolveConfirm(false);
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !els.confirmModal.classList.contains('hidden')) {
+            resolveConfirm(false);
+        }
+    });
+}
+
+// Promise-based replacement for window.confirm() -- resolves true/false
+// once the user picks an option on the in-app modal, so callers can just
+// `await showConfirm(...)` the same way they would `window.confirm(...)`.
+let confirmResolver = null;
+
+function showConfirm(message, { title = 'Are you sure?', confirmLabel = 'Confirm' } = {}) {
+    els.confirmModalTitle.textContent = title;
+    els.confirmModalMessage.textContent = message;
+    els.confirmModalConfirm.textContent = confirmLabel;
+    els.confirmModal.classList.remove('hidden');
+    els.confirmModalConfirm.focus();
+
+    return new Promise((resolve) => {
+        confirmResolver = resolve;
+    });
+}
+
+function resolveConfirm(result) {
+    els.confirmModal.classList.add('hidden');
+    if (confirmResolver) {
+        confirmResolver(result);
+        confirmResolver = null;
+    }
 }
 
 function autoResize() {
@@ -118,9 +159,6 @@ async function loadHistory() {
         const data = await response.json();
         state.conversations = Array.isArray(data.history) ? data.history : [];
         renderConversations();
-        if (!state.currentConversationId && state.conversations.length) {
-            selectConversation(state.conversations[0].conversation_id);
-        }
     } catch (error) {
         console.error(error);
         showToast('Unable to load history', 'error');
@@ -176,7 +214,11 @@ function renderConversations() {
 }
 
 async function deleteConversationItem(conversationId) {
-    if (!window.confirm('Delete this conversation? This cannot be undone.')) {
+    const confirmed = await showConfirm('This cannot be undone.', {
+        title: 'Delete conversation?',
+        confirmLabel: 'Delete',
+    });
+    if (!confirmed) {
         return;
     }
 
@@ -230,7 +272,7 @@ async function sendMessage() {
     appendMessage('user', prompt, new Date().toISOString());
     els.messageInput.value = '';
     autoResize();
-    showTypingIndicator('Planning the work…');
+    showTypingIndicator('Reading your message…');
 
     const formData = new FormData();
     formData.append('user_id', USER_ID);
@@ -240,24 +282,51 @@ async function sendMessage() {
     state.selectedFiles.forEach((file) => formData.append('file', file));
 
     try {
-        const response = await fetch(`${API_BASE}/run`, {
+        const response = await fetch(`${API_BASE}/run/stream`, {
             method: 'POST',
             body: formData,
         });
-        const data = await response.json();
+        if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+
+        // "phase" events update the typing indicator's label in place as the backend
+        // moves through intent-check -> Planner/chat-reply -> summary, instead of a
+        // static "Thinking…" for the whole request; the last non-phase event carries
+        // the actual outcome.
+        let finalEvent = null;
+        await consumeEventStream(response, (event) => {
+            if (event.type === 'phase') {
+                showTypingIndicator(event.message);
+            } else {
+                finalEvent = event;
+            }
+        });
+
         removeTypingIndicator();
-        if (!state.currentConversationId) {
-            state.currentConversationId = data.conversation_id;
+
+        if (!finalEvent) {
+            throw new Error('The connection ended before a response arrived.');
+        }
+        if (!state.currentConversationId && finalEvent.conversation_id) {
+            state.currentConversationId = finalEvent.conversation_id;
         }
 
-        if (data.error || !data.plan) {
-            appendMessage(
+        if (finalEvent.type === 'error') {
+            appendMessageTyped(
                 'assistant',
-                data.error || 'I could not come up with a plan for that.',
+                finalEvent.message || 'Something went wrong.',
+                new Date().toISOString(),
+            );
+        } else if (finalEvent.error || !finalEvent.plan) {
+            // finalEvent.reply is set when the backend classified this message as
+            // chit-chat rather than a ticket (see backend/services/bot/intent.py)
+            // -- no plan was generated, so just show the direct reply.
+            appendMessageTyped(
+                'assistant',
+                finalEvent.error || finalEvent.reply || 'I could not come up with a plan for that.',
                 new Date().toISOString(),
             );
         } else {
-            renderPlanMessage(data.plan, data.conversation_id, prompt);
+            renderPlanMessage(finalEvent.plan, finalEvent.conversation_id, prompt);
         }
         await loadHistory();
     } catch (error) {
@@ -463,7 +532,7 @@ async function requestPlanChanges(card) {
         const data = await response.json();
         removeTypingIndicator();
         if (data.error || !data.plan) {
-            appendMessage(
+            appendMessageTyped(
                 'assistant',
                 data.error || 'I could not revise the plan.',
                 new Date().toISOString(),
@@ -617,6 +686,47 @@ function appendMessage(role, content, timestamp) {
     row.appendChild(card);
     els.chatWindow.appendChild(row);
     els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
+}
+
+/**
+ * Same as appendMessage(), but drip-feeds the text into the DOM instead of showing it
+ * all at once -- purely a client-side reveal animation. The backend already returned the
+ * complete reply (see /run/stream's "result" event) before this is ever called, so this
+ * does NOT reflect real generation progress the way the phase-streaming ("Reading your
+ * message…" etc.) does -- it's cosmetic, to make the answer feel like it's being typed.
+ * Duration is capped so long replies (e.g. a SNIPPET's code block) don't drag the
+ * animation out -- always somewhere between 400ms and 1.8s regardless of length.
+ */
+function appendMessageTyped(role, content, timestamp) {
+    const safeContent =
+        typeof content === 'string' ? content : JSON.stringify(content);
+    const row = document.createElement('div');
+    row.className = `message-row ${role === 'user' ? 'user' : ''}`;
+    const card = document.createElement('div');
+    card.className = 'message-card';
+    card.innerHTML = `
+    <div class="message-card-head">
+      ${role === 'user' ? ICONS.user : ICONS.bot}
+      <h4>${role === 'user' ? 'You' : 'Agent'}</h4>
+    </div>
+    <div class="message-body"></div>
+    <div class="message-meta">${timestamp ? new Date(timestamp).toLocaleString() : 'just now'}</div>
+  `;
+    row.appendChild(card);
+    els.chatWindow.appendChild(row);
+
+    const bodyEl = card.querySelector('.message-body');
+    const durationMs = Math.min(1800, Math.max(400, safeContent.length * 12));
+    const startedAt = performance.now();
+
+    function tick(now) {
+        const progress = Math.min(1, (now - startedAt) / durationMs);
+        const chars = Math.ceil(safeContent.length * progress);
+        bodyEl.innerHTML = formatMessage(safeContent.slice(0, chars));
+        els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
+        if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
 }
 
 function formatMessage(content) {

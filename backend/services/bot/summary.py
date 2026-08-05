@@ -1,5 +1,6 @@
 from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
+import json
 import logging
 
 load_dotenv()
@@ -83,9 +84,12 @@ class Summary:
             # Haiku 4.5 doesn't support the `thinking`/`effort` params (they
             # error on this model tier), so this is a plain, single-shot call
             # constrained to a JSON object via output_config.format.
+            # max_tokens=60 -- the schema forces {"title": "..."} and the prompt caps
+            # the title at 3-8 words (~15-25 tokens incl. JSON overhead); 60 leaves a
+            # safe margin without leaving room for a runaway response.
             response = await self.client.messages.create(
                 model=self.model_name,
-                max_tokens=300,
+                max_tokens=60,
                 output_config={
                     "format": {
                         "type": "json_schema",
@@ -116,7 +120,11 @@ class Summary:
             summary_text = next(
                 block.text for block in response.content if block.type == "text"
             )
-            return summary_text
+            # summary_text is the raw {"title": "..."} JSON object (guaranteed by the
+            # json_schema output_config above) -- unwrap it so callers (and the DB's
+            # `summary` column / the UI's sidebar) get the plain title string, not the
+            # JSON envelope around it.
+            return json.loads(summary_text)["title"]
         except Exception as e:
             logger.error(f"Error generating summary: {e}")
             raise e
