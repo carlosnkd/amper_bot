@@ -1,0 +1,147 @@
+TOP 5 DEVELOPMENT CHALLENGES — Amper Bot
+==========================================
+(Based on the issues actually found and fixed during this development session)
+
+
+1. TEACHING THE BOT TO TELL A REAL TICKET APART FROM A QUICK QUESTION
+------------------------------------------------------------------------
+Problem:
+Every message sent through the chat -- including something as simple as
+"what can you do?" -- was forced straight into the Planner agent. The
+Planner's job is to always produce a concrete implementation plan and
+never ask for clarification, so casual questions came back as fake,
+nonsensical "engineering plans" instead of a real answer.
+
+Why it was tricky:
+The fix wasn't just a yes/no filter. A first pass split messages into
+TICKET vs. CHAT, but that turned out too coarse -- a request like "give me
+a simple Python script for a FastAPI API" isn't chit-chat, but it also
+has nothing to do with this product's own codebase, so it shouldn't
+reach the Planner/Coder/Reviewer pipeline either. The category system had
+to grow to three: TICKET (build/change something in this product),
+SNIPPET (a self-contained code/technical answer), and CHAT (small talk).
+Token budgets also had to be tuned per case -- a chit-chat reply needs far
+fewer tokens than a SNIPPET's reply, which might carry a full code block.
+
+Resolution:
+A dedicated, cheap classification step (Haiku model, JSON-schema-
+constrained output) now runs before anything reaches the Planner, routing
+TICKET requests to the full pipeline and answering CHAT/SNIPPET directly.
+
+
+2. THE BOT LOSING ITS MEMORY BETWEEN TURNS OF THE SAME CONVERSATION
+------------------------------------------------------------------------
+Problem:
+Follow-up messages were being answered as if the prior exchange never
+happened. Example: asking for a FastAPI script, then asking "how can I
+implement your response in a real world scenario," produced a generic
+answer with zero awareness of the FastAPI script just given.
+
+Why it was tricky:
+This was a subtle architectural bug, not a model limitation. The in-memory
+cache used to build "conversation history so far" was being wiped after
+every single turn as a side effect of persisting that turn to the
+database -- so by the time the next message arrived, the classifier and
+summarizer always saw an empty history, even mid-conversation. Diagnosing
+it required directly inspecting the cache's live state to prove it was
+empty at the exact moment the second turn's classification ran. A second,
+related bug was found in the process: conversations with more than one
+saved turn were replaying in REVERSE chronological order in the sidebar,
+because of how those turns were being sorted and merged.
+
+Resolution:
+Conversation history for classification/summarization now reads from the
+database (the durable source of truth) instead of the volatile per-turn
+cache, and the history-merging logic was fixed to preserve real
+chronological order.
+
+
+3. A NON-CRITICAL FAILURE COULD CRASH THE ENTIRE REQUEST
+------------------------------------------------------------------------
+Problem:
+Generating the short sidebar title for a conversation is a cosmetic,
+secondary step -- but a transient failure in that one call (a 400/401 from
+the API) was enough to throw an unhandled exception that took down the
+*entire* request with a 500 error, discarding a perfectly good plan or
+reply that had already been generated successfully.
+
+Why it was tricky:
+The failure wasn't reliably reproducible on demand, which meant the fix
+couldn't just target "the one bad input" -- it had to make the whole
+class of failure harmless regardless of root cause.
+
+Resolution:
+Title generation was wrapped so any failure there falls back to a
+truncated version of the user's own text instead of propagating an
+exception -- the user always gets their actual answer, even if the
+sidebar label degrades gracefully.
+
+
+4. AN INVISIBLE, ORPHANED SERVER PROCESS SERVING STALE CREDENTIALS
+------------------------------------------------------------------------
+Problem:
+After updating the API key on disk, the running server kept rejecting
+every request with an "invalid API key" error -- even after what looked
+like a full restart.
+
+Why it was tricky:
+The real culprit was a background worker process left over from
+`--reload`'s process-supervision model: when its parent process was
+stopped, the worker itself kept running and stayed bound to the port,
+still holding the old key from before it was updated. It was invisible to
+a normal process check because its command line doesn't literally contain
+the word "server" or the app's name -- it's a bare low-level worker
+handle. Diagnosing it required cross-referencing which process actually
+owned the listening port against the full process tree, not just
+searching for the obvious process name.
+
+Resolution:
+The orphaned worker was identified and stopped by its exact process ID,
+the port was confirmed free, and the server was relaunched cleanly.
+
+
+5. GIVING THE USER REAL VISIBILITY INTO WHAT'S HAPPENING, NOT A FROZEN SPINNER
+------------------------------------------------------------------------------
+Problem:
+While a request was being processed, the UI showed a single static
+"Thinking..." message for the entire duration, with no indication of
+what was actually happening -- classifying the message, planning the
+work, or wrapping up.
+
+Why it was tricky:
+Real, live backend progress requires the response to be streamed rather
+than returned all at once -- a meaningfully different request/response
+model. A related, harder question came up too: could the actual generated
+text stream in token-by-token, the way modern chat assistants show an
+answer being "typed"? That turned out to conflict with a design choice
+made earlier for reliability -- replies are generated as strict,
+schema-validated JSON (to guarantee a parseable result every time), and
+schema-constrained output can't be cleanly streamed to a UI without
+showing broken, partial JSON fragments.
+
+Resolution:
+Real backend progress was implemented as a stream of status events
+("Reading your message...", "Planning the work...", "Wrapping up...")
+that update live in the UI. Token-by-token reply streaming was
+deliberately deferred as a larger, separate change (splitting
+classification from reply generation) rather than compromising the
+reliability of the JSON-based response format.
+
+
+Actually a very relevant question given what we just went through — let me ground it in what's actually in this codebase rather than generic Redis talking points.
+
+Where it would genuinely help — the three in-memory caches:
+
+conversation_cache, plan_cache, and ticket_cache are all plain Python dicts living in process memory (their own docstrings even flag this — plan_cache.py literally says "swap for a real table if a pending plan needs to survive a process restart"). That design has three concrete costs today:
+
+They don't survive a restart. Every time you've restarted uvicorn this session (which happened a few times while chasing the API key issue), any pending plan waiting for approval, or a build's turn history, would have been silently wiped. A user mid-approval would lose their plan with no warning.
+They can't be shared across multiple workers. Right now the app runs as one process, so this doesn't bite — but the moment you'd want to scale (uvicorn --workers 4, or multiple instances behind a load balancer for real traffic), each worker gets its own separate dict. A user's /run request landing on worker A creates a pending plan only worker A knows about; if their /build approval happens to land on worker B, the plan simply doesn't exist as far as that worker's concerned. Redis (or any shared store) is what makes horizontal scaling possible here at all — right now this app is architecturally pinned to a single process.
+They can silently go stale under --reload. Related to what we debugged: a fresh worker process means a fresh empty cache, no continuity, no warning.
+Redis fixes all three by being an external, shared, persistent-enough key-value store instead of memory tied to one process's lifetime — set_pending_plan/get_pending_plan would become redis.set(...)/redis.get(...) with barely any logic change, just a different backing store.
+
+Where it wouldn't really move the needle:
+
+SQLite stays as-is — Redis isn't a replacement for the durable messages table, it'd sit alongside it for the ephemeral working state, not the permanent history.
+It wouldn't have prevented the orphaned-process API key bug — that was an environment-variable/process-lifecycle issue, unrelated to application-level caching.
+The semantic-caching idea from earlier — if you ever did build that, Redis (with TTLs, or vector search via RediSearch) is the natural home for it. But per that earlier conversation, I still wouldn't build it yet at this app's current traffic level regardless of what store backs it.
+Bottom line: it's not urgent at single-user, single-process scale — but it's the specific piece of infrastructure standing between this app and being safely multi-worker/multi-instance. If you ever add real auth and more than a couple of concurrent users, that's the point where I'd actually recommend making the swap, starting with plan_cache since a lost pending plan is the most user-visible failure mode of the three.

@@ -61,8 +61,13 @@ class Intent:
     message in isolation.
 
     **Response Structure** (STRICT):
-    - Return a JSON object only, with exactly two keys: "intent" and "reply".
+    - Return a JSON object only, with exactly three keys: "intent", "reasoning", and "reply".
     - "intent" is exactly one of "TICKET", "SNIPPET", "CHAT".
+    - "reasoning" is REQUIRED for every intent: one short sentence (under ~160 characters)
+      explaining what about the message drove this classification -- e.g. "Asks to add a
+      new endpoint to this product's own backend" or "Small talk with no request to build
+      or change anything." This is shown to developers in an agent-trace panel, not to the
+      end user -- it must NEVER just restate "reply" or repeat the user's message verbatim.
     - "reply" is REQUIRED when intent is "SNIPPET" or "CHAT": the actual answer,
       written as the assistant. For SNIPPET, include real, working code (in a
       markdown code block) plus at most a sentence or two of context -- don't
@@ -77,9 +82,10 @@ class Intent:
         "type": "object",
         "properties": {
             "intent": {"type": "string", "enum": ["TICKET", "SNIPPET", "CHAT"]},
+            "reasoning": {"type": "string"},
             "reply": {"type": "string"},
         },
-        "required": ["intent", "reply"],
+        "required": ["intent", "reasoning", "reply"],
         "additionalProperties": False,
     }
 
@@ -132,4 +138,9 @@ class Intent:
             # Fail safe toward TICKET -- worst case the Planner sees a chit-chat
             # message and makes an assumption about it (its job either way);
             # failing safe toward CHAT could silently drop a real request.
-            return {"intent": "TICKET", "reply": ""}
+            return {
+                "intent": "TICKET",
+                "reasoning": "Classification call failed; defaulting to TICKET so a real "
+                "request is never silently dropped.",
+                "reply": "",
+            }

@@ -46,14 +46,26 @@ def build_plan_task(feedback: str | None = None, previous_plan: dict | None = No
             keep the parts of it that still apply.
 
             If the ticket is ambiguous, do not stop and ask -- pick the most reasonable
-            interpretation and record it under "assumptions".
+            interpretation and record it under "assumptions". Only record an assumption when
+            it's a genuine fork in the road -- a choice that would meaningfully change the
+            implementation if you guessed wrong (e.g. "storage backend" or "auth model" for a
+            rate limiter). Do not record assumptions for defaults nobody would question (e.g.
+            "the app is written in the same language as the rest of the codebase"). Aim for
+            3-5; if you can't justify why a guess deserves to be there, leave it out.
+
+            Size each task the way a senior engineer would size a unit of work to hand off --
+            a coherent, reviewable chunk (e.g. "add the rate-limit middleware and wire it into
+            the endpoint," not three separate tasks for "add config," "read config," and "wire
+            it in"). Aim for 5-8 tasks for a typical ticket. A larger ticket can genuinely need
+            more -- don't cut real scope to hit a number -- but never split one coherent change
+            into multiple tasks just to look thorough.
         """,
         expected_output="""
             Valid JSON only, no markdown fences, no extra text, in exactly this shape:
             {
-              "assumptions": ["<assumption made to resolve ambiguity>", "..."],
+              "assumptions": ["<a genuine fork in the road, not a restated default>", "..."],
               "tasks": [
-                {"id": "T1", "description": "<one concrete, implementable task>"},
+                {"id": "T1", "description": "<one coherent, reviewable unit of work>"},
                 {"id": "T2", "description": "..."}
               ]
             }

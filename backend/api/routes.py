@@ -2,9 +2,10 @@ import asyncio
 import json
 import queue
 import uuid
+from pathlib import Path
 from backend.main import get_db
 from fastapi import APIRouter, UploadFile, File, Form, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Optional
 from backend.services.research import build_from_plan, build_from_plan_worker, revise_plan, start_plan
 from sqlalchemy.orm import Session
@@ -12,11 +13,15 @@ from backend.services.chat import (
     record_message,
     end_conversation,
     load_user_history,
-    delete_conversation
+    delete_conversation,
+    get_trace,
 )
 from agents.ticket_pipeline.main import run_ticket_pipeline
 
 router = APIRouter()
+
+# repo root -- routes.py is backend/api/routes.py, so two parents up.
+README_PATH = Path(__file__).resolve().parents[2] / "README.md"
 
 
 def _sse(payload: dict) -> str:
@@ -43,6 +48,26 @@ def _format_plan_message(plan: dict) -> str:
     return "\n".join(lines)
 
 
+def _plan_message_payload(plan: dict | None, ticket: str):
+    """
+    What gets persisted as an assistant message's `content` for a Planner turn.
+
+    When a plan was produced, this is a structured object (not just the flattened
+    markdown _format_plan_message() renders) so history replay can rebuild the same rich
+    plan card the user saw live -- task ID badges, separate Assumptions/Tasks sections --
+    instead of a wall of plain text (see static/js/app.js's selectConversation() +
+    renderPlanMessage()). `text` is kept alongside as a plain-text fallback for anything
+    that expects a string (e.g. conversation_history fed into Summary/Intent's prompts).
+
+    Falls back to the flattened text alone when there's no plan (Planner failed) --
+    nothing structured to replay in that case, same as a chat_reply.
+    """
+    text = _format_plan_message(plan)
+    if not plan:
+        return text
+    return {"type": "plan", "text": text, "plan": plan, "ticket": ticket}
+
+
 @router.post('/run')
 async def run_agent(
     user_id: str = Form(...),
@@ -64,10 +89,14 @@ async def run_agent(
     result, summary = await start_plan(user_id, query, conversation_id)
 
     # chat_reply is set when the intent gate in start_plan() classified this message
-    # as chit-chat rather than a ticket -- the Planner never ran, so there's no plan
-    # to render, just this direct reply.
+    # as chit-chat/a snippet rather than a ticket -- the Planner never ran, so there's
+    # no plan to render, just this direct reply.
     chat_reply = result.get("chat_reply")
-    assistant_message = chat_reply if chat_reply is not None else _format_plan_message(result.get("plan"))
+    assistant_message = (
+        chat_reply
+        if chat_reply is not None
+        else _plan_message_payload(result.get("plan"), result.get("ticket") or query)
+    )
 
     record_message(user_id, conversation_id, "user", query)
     record_message(user_id, conversation_id, "assistant", assistant_message)
@@ -129,7 +158,9 @@ async def run_agent_stream(
                     summary = event["summary"]
                     chat_reply = result.get("chat_reply")
                     assistant_message = (
-                        chat_reply if chat_reply is not None else _format_plan_message(result.get("plan"))
+                        chat_reply
+                        if chat_reply is not None
+                        else _plan_message_payload(result.get("plan"), result.get("ticket") or query)
                     )
 
                     record_message(user_id, conversation_id, "user", query)
@@ -174,7 +205,12 @@ async def replan(
     result, summary = await revise_plan(user_id, conversation_id, feedback)
 
     record_message(user_id, conversation_id, "user", feedback)
-    record_message(user_id, conversation_id, "assistant", _format_plan_message(result.get("plan")))
+    record_message(
+        user_id,
+        conversation_id,
+        "assistant",
+        _plan_message_payload(result.get("plan"), result.get("ticket") or feedback),
+    )
     end_conversation(user_id, conversation_id, db, summary)
 
     return {
@@ -323,3 +359,43 @@ def history(user_id: str, db: Session = Depends(get_db)):
 @router.delete('/delete_conversation')
 def delete_conversation_endpoint(user_id: str, conversation_id: str, db: Session = Depends(get_db)):
     return delete_conversation(user_id, db, conversation_id)
+
+@router.get('/api/readme')
+def get_readme():
+    """
+    Raw README.md content for the frontend's "About" / "What I'd Do Differently" tabs
+    (static/js/app.js's loadReadme()), which render it client-side via marked.js -- this
+    endpoint deliberately returns markdown, not HTML, so there's no server-side rendering
+    dependency. Reads from disk on every call rather than caching in memory: README.md
+    changes rarely and this is a low-traffic, dev-facing endpoint, so the simplicity of
+    always reading the current file outweighs any benefit from caching it.
+    """
+    try:
+        content = README_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"README.md not found at {README_PATH}"},
+        )
+    return {"content": content}
+
+
+@router.get('/trace')
+def trace(user_id: str, conversation_id: str):
+    """
+    Every intermediate agent decision recorded for this conversation, grouped by the chat
+    turn each step belongs to -- what intent a message was classified as (and why), what
+    approach the Planner chose, what the Coder implemented, and whether the Reviewer
+    approved it (and why not, if it didn't). Each step is short -- {agent, decision,
+    reasoning, timestamp} -- never the full chat/build response text; that's already in
+    the transcript (see agents/ticket_pipeline/flow.py's TicketState.trace and
+    backend/services/chat.py's record_trace()/get_trace()). Deliberately not surfaced in
+    the chat transcript itself; this is the accessible-but-separate view of it -- the UI's
+    "View agent trace" panel reads from here. Shape:
+
+        {"conversation_id": "...", "turns": [
+            {"turn_id": "...", "steps": [{"agent", "decision", "reasoning", "timestamp"}, ...]},
+            ...
+        ]}
+    """
+    return {"conversation_id": conversation_id, "turns": get_trace(user_id, conversation_id)}

@@ -21,6 +21,12 @@ planner_agent = Agent(
         stall waiting for clarification, because no one is available to answer.
         When conversation history is provided, you treat follow-up requests (e.g. "agrégale
         también X") as amendments to the most recent plan, not as an unrelated new ticket.
+
+        You write plans the way a senior engineer briefs a teammate before they start work --
+        not the way you'd write an exhaustive spec. Thoroughness means nothing important is
+        missing, not that every micro-step gets its own line. You never pad the assumptions
+        list with defaults nobody would question, and you never split one coherent change into
+        several tasks just to look diligent.
     """,
     verbose=True,
     tools=[],

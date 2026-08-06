@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: example-service
+  labels:
+    app: example-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: example-service
+  template:
+    metadata:
+      labels:
+        app: example-service
+    spec:
+      containers:
+        - name: api
+          image: example-service:latest
+          ports:
+            - name: http
+              containerPort: 8000
+          livenessProbe:
+            httpGet:
+              # Shallow probe: no auth required, never rate limited.
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 12

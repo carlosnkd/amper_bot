@@ -31,8 +31,10 @@ async def plan_ticket(
 
     return {
         "conversation_id": conversation_id,
+        "ticket": ticket,
         "plan": final_state.plan,
         "error": final_state.error,
+        "trace": final_state.trace,
     }
 
 
@@ -66,6 +68,7 @@ async def build_ticket(
         "approved": final_state.approved,
         "retries_used": final_state.retry_count,
         "error": final_state.error,
+        "trace": final_state.trace,
     }
 
 
@@ -107,4 +110,5 @@ async def run_ticket_pipeline(
         "approved": final_state.approved,
         "retries_used": final_state.retry_count,
         "error": final_state.error,
+        "trace": final_state.trace,
     }

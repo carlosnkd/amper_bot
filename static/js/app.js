@@ -13,6 +13,14 @@ const state = {
     theme: localStorage.getItem('agent-theme') || 'light',
 };
 
+// Single source of truth for every generated file's content -- both the compact rows
+// in the chat and the file pane's detail view render from lookups into this same store,
+// so content is never duplicated in the DOM. Keyed by a build-scoped id (not just the
+// file path) so the same path in two different builds/messages doesn't collide.
+const fileStore = new Map(); // id -> { id, path, content, language }
+let openFileIds = []; // ids currently open as tabs in the file pane, in tab order
+let activeFileId = null;
+
 const ICONS = {
     sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"></circle><line x1="12" y1="2.5" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="21.5"></line><line x1="4.2" y1="4.2" x2="6" y2="6"></line><line x1="18" y1="18" x2="19.8" y2="19.8"></line><line x1="2.5" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="21.5" y2="12"></line><line x1="4.2" y1="19.8" x2="6" y2="18"></line><line x1="18" y1="6" x2="19.8" y2="4.2"></line></svg>',
     moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"></path></svg>',
@@ -29,6 +37,7 @@ function init() {
     applyTheme();
     renderEmptyState();
     loadHistory();
+    initTabs();
 }
 
 function cacheElements() {
@@ -50,6 +59,24 @@ function cacheElements() {
     els.confirmModalMessage = document.getElementById('confirmModalMessage');
     els.confirmModalCancel = document.getElementById('confirmModalCancel');
     els.confirmModalConfirm = document.getElementById('confirmModalConfirm');
+    els.filePane = document.getElementById('filePane');
+    els.filePaneTabs = document.getElementById('filePaneTabs');
+    els.filePaneFilename = document.getElementById('filePaneFilename');
+    els.filePaneCode = document.getElementById('filePaneCode');
+    els.filePaneClose = document.getElementById('filePaneClose');
+    els.traceToggle = document.getElementById('traceToggle');
+    els.tracePane = document.getElementById('tracePane');
+    els.tracePaneClose = document.getElementById('tracePaneClose');
+    els.tracePaneBody = document.getElementById('tracePaneBody');
+
+    els.tabBtns = Array.from(document.querySelectorAll('.tab-btn'));
+    els.tabPanels = {
+        chat: document.getElementById('tabPanelChat'),
+        about: document.getElementById('tabPanelAbout'),
+        retro: document.getElementById('tabPanelRetro'),
+    };
+    els.aboutContent = document.getElementById('aboutContent');
+    els.retroContent = document.getElementById('retroContent');
 }
 
 function bindEvents() {
@@ -71,6 +98,67 @@ function bindEvents() {
             resolveConfirm(false);
         }
     });
+    els.filePaneClose.addEventListener('click', closeFilePane);
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && els.filePane.classList.contains('open')) {
+            closeFilePane();
+        }
+    });
+    els.traceToggle.addEventListener('click', toggleTracePane);
+    els.tracePaneClose.addEventListener('click', closeTracePane);
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && els.tracePane.classList.contains('open')) {
+            closeTracePane();
+        }
+    });
+    // Delegated on chatWindow (not per-button) since code blocks get inserted/replaced
+    // dynamically -- freshly on every message, and repeatedly per frame during
+    // appendMessageTyped()'s reveal animation -- so there's no single stable moment to
+    // attach a direct listener to any given button.
+    els.chatWindow.addEventListener('click', handleCodeBlockClick);
+}
+
+function handleCodeBlockClick(event) {
+    const copyBtn = event.target.closest('.code-block-copy');
+    if (copyBtn) {
+        copySnippet(copyBtn);
+        return;
+    }
+    const downloadBtn = event.target.closest('.code-block-download');
+    if (downloadBtn) {
+        downloadSnippet(downloadBtn);
+    }
+}
+
+async function copySnippet(button) {
+    const snippet = codeSnippets.get(button.dataset.codeId);
+    if (!snippet) return;
+    try {
+        await navigator.clipboard.writeText(snippet.code);
+        const original = button.textContent;
+        button.textContent = 'Copied!';
+        button.classList.add('copied');
+        setTimeout(() => {
+            button.textContent = original;
+            button.classList.remove('copied');
+        }, 1500);
+    } catch (error) {
+        showToast('Could not copy to clipboard', 'error');
+    }
+}
+
+function downloadSnippet(button) {
+    const snippet = codeSnippets.get(button.dataset.codeId);
+    if (!snippet) return;
+    const blob = new Blob([snippet.code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = suggestSnippetFilename(snippet.language);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
 }
 
 // Promise-based replacement for window.confirm() -- resolves true/false
@@ -121,6 +209,151 @@ function applyTheme() {
     );
 }
 
+/**
+ * Tab bar (Chat / About / What I'd Do Differently). Chat is the pre-existing UI, wired
+ * up exactly as it was before -- these three functions only add the tab chrome around
+ * it. About/Retro fetch README.md lazily (on first visit to either tab, not on page
+ * load) and cache it in `readmeState`, so switching tabs back and forth never re-fetches.
+ */
+const readmeState = {
+    markdown: null, // cached raw markdown once fetched successfully
+    error: null, // set instead of `markdown` if the fetch/parse failed
+    fetchPromise: null, // in-flight fetch, so a rapid double-click can't fire it twice
+};
+
+// Candidate headings for the "What I'd Do Differently" tab, tried in order -- lets this
+// work out of the box against a README that uses a different (but equivalent) heading,
+// like this repo's own "## Known limitations", without hardcoding one exact title.
+const RETRO_HEADING_PATTERNS = [
+    /what i.?d do differently/i,
+    /what i would do differently/i,
+    /retrospective/i,
+    /lessons learned/i,
+    /trade-?offs?/i,
+    /known limitations/i,
+];
+
+function initTabs() {
+    els.tabBtns.forEach((btn) => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+}
+
+function switchTab(tabName) {
+    if (!els.tabPanels[tabName]) return;
+
+    els.tabBtns.forEach((btn) => {
+        const active = btn.dataset.tab === tabName;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    Object.entries(els.tabPanels).forEach(([name, panel]) => {
+        panel.classList.toggle('hidden', name !== tabName);
+    });
+
+    if (tabName === 'about' || tabName === 'retro') {
+        loadReadme().then(renderReadmeTabs);
+    }
+}
+
+/** Fetches + caches README.md's raw markdown. Safe to call repeatedly -- only the first
+ * call actually hits the network; later calls (including a second tab click while the
+ * first fetch is still in flight) reuse the same promise/cached result. */
+function loadReadme() {
+    if (readmeState.markdown !== null || readmeState.error !== null) {
+        return Promise.resolve();
+    }
+    if (readmeState.fetchPromise) {
+        return readmeState.fetchPromise;
+    }
+
+    renderReadmeTabs('Loading…');
+
+    readmeState.fetchPromise = fetch(`${API_BASE}/api/readme`)
+        .then(async (response) => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || `Request failed with ${response.status}`);
+            }
+            readmeState.markdown = data.content || '';
+        })
+        .catch((error) => {
+            console.error(error);
+            readmeState.error =
+                'Unable to load README.md right now -- ' + (error.message || 'the request failed') + '.';
+        })
+        .finally(() => {
+            readmeState.fetchPromise = null;
+        });
+
+    return readmeState.fetchPromise;
+}
+
+/** Renders the cached README (or its error) into both the About and Retro tabs' content
+ * divs. Called once loadReadme() settles, and also (with a literal string) to show a
+ * "Loading…" placeholder immediately, before the fetch resolves. */
+function renderReadmeTabs(loadingLabel) {
+    if (typeof loadingLabel === 'string') {
+        els.aboutContent.textContent = loadingLabel;
+        els.retroContent.textContent = loadingLabel;
+        return;
+    }
+
+    if (readmeState.error) {
+        els.aboutContent.innerHTML = `<p class="readme-fallback">${escapeHtml(readmeState.error)}</p>`;
+        els.retroContent.innerHTML = `<p class="readme-fallback">${escapeHtml(readmeState.error)}</p>`;
+        return;
+    }
+
+    els.aboutContent.innerHTML = renderMarkdown(readmeState.markdown);
+
+    const retroSection = extractRetroSection(readmeState.markdown);
+    els.retroContent.innerHTML = renderMarkdown(retroSection || readmeState.markdown);
+}
+
+/** marked.js is loaded from a CDN (see index.html) -- fails soft to escaped plain text
+ * if that request was blocked/failed, instead of leaving the tab blank. */
+function renderMarkdown(markdown) {
+    if (typeof marked === 'undefined') {
+        return `<pre class="readme-fallback">${escapeHtml(markdown)}</pre>`;
+    }
+    return marked.parse(markdown);
+}
+
+/**
+ * Pulls out the section starting at the first heading matching RETRO_HEADING_PATTERNS,
+ * up to (but not including) the next heading of the same or shallower level. Returns
+ * null if no matching heading is found -- callers fall back to the full README, which is
+ * simpler and still useful rather than rendering nothing.
+ */
+function extractRetroSection(markdown) {
+    if (!markdown) return null;
+    const lines = markdown.split('\n');
+
+    let startIndex = -1;
+    let startLevel = 0;
+    for (let i = 0; i < lines.length; i++) {
+        const match = lines[i].match(/^(#{1,6})\s+(.*)$/);
+        if (match && RETRO_HEADING_PATTERNS.some((pattern) => pattern.test(match[2]))) {
+            startIndex = i;
+            startLevel = match[1].length;
+            break;
+        }
+    }
+    if (startIndex === -1) return null;
+
+    let endIndex = lines.length;
+    for (let i = startIndex + 1; i < lines.length; i++) {
+        const match = lines[i].match(/^(#{1,6})\s+/);
+        if (match && match[1].length <= startLevel) {
+            endIndex = i;
+            break;
+        }
+    }
+
+    return lines.slice(startIndex, endIndex).join('\n').trim();
+}
+
 function toggleTheme() {
     state.theme = state.theme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('agent-theme', state.theme);
@@ -138,6 +371,7 @@ function startNewConversation() {
     renderEmptyState();
     state.selectedFiles = [];
     renderFiles();
+    loadTrace();
 }
 
 function renderEmptyState() {
@@ -149,6 +383,15 @@ function renderEmptyState() {
       </div>
     `;
     }
+}
+
+// The empty-state placeholder is a real node inside chatWindow (see renderEmptyState()),
+// not a CSS-only overlay -- so it has to be explicitly torn down once real messages start
+// arriving, or it just sits there above/alongside them. Called from every entry point that
+// adds a message to an conversation that might still be showing it.
+function clearEmptyState() {
+    const emptyState = els.chatWindow.querySelector('.empty-state');
+    if (emptyState) emptyState.remove();
 }
 
 async function loadHistory() {
@@ -253,12 +496,24 @@ async function selectConversation(conversationId) {
     );
     if (!conversation) return;
     els.chatWindow.innerHTML = '';
-    (conversation.messages || []).forEach((message) =>
-        appendMessage(message.role, message.content, message.timestamp),
-    );
+    (conversation.messages || []).forEach((message) => {
+        const content = message.content;
+        // A structured plan payload (see backend/api/routes.py's
+        // _plan_message_payload()) -- rebuild the real plan card instead of dumping
+        // its flattened `text` fallback as a plain message.
+        if (content && typeof content === 'object' && content.type === 'plan' && content.plan) {
+            renderPlanMessage(content.plan, conversationId, content.ticket || '', {
+                readOnly: true,
+                timestamp: message.timestamp,
+            });
+        } else {
+            appendMessage(message.role, content, message.timestamp);
+        }
+    });
     if (!conversation.messages?.length) {
         renderEmptyState();
     }
+    loadTrace();
 }
 
 async function sendMessage() {
@@ -329,6 +584,7 @@ async function sendMessage() {
             renderPlanMessage(finalEvent.plan, finalEvent.conversation_id, prompt);
         }
         await loadHistory();
+        await loadTrace();
     } catch (error) {
         removeTypingIndicator();
         showToast('The request could not be completed', 'error');
@@ -356,9 +612,24 @@ function setComposerLocked(locked, hint) {
         : 'Ask about your data, schema, or research question...';
 }
 
-function renderPlanMessage(plan, conversationId, ticketText) {
+// Plans are usually tight now (the Planner's prompt asks for ~3-5 real assumptions and
+// ~5-8 coherent tasks), but a genuinely large ticket can still legitimately produce more --
+// rather than ever dumping a wall of text, anything past these counts starts collapsed
+// behind a "show more" toggle. The extra items are still rendered (just hidden), not
+// omitted, so approving the plan still submits all of them -- see collectEditedPlan().
+const VISIBLE_ASSUMPTIONS = 4;
+const VISIBLE_TASKS = 7;
+
+function renderPlanMessage(plan, conversationId, ticketText, options = {}) {
+    // readOnly is set when replaying a saved conversation (selectConversation()) --
+    // the plan card looks the same, but Approve/Request changes don't make sense
+    // against a reload: plan_cache and any pending in-memory state are long gone, and
+    // the composer shouldn't lock up over a conversation the user is just reviewing.
+    const { readOnly = false, timestamp = null } = options;
     const assumptions = plan.assumptions || [];
     const tasks = plan.tasks || [];
+    const extraAssumptionsCount = Math.max(0, assumptions.length - VISIBLE_ASSUMPTIONS);
+    const extraTasksCount = Math.max(0, tasks.length - VISIBLE_TASKS);
 
     const row = document.createElement('div');
     row.className = 'message-row';
@@ -377,13 +648,30 @@ function renderPlanMessage(plan, conversationId, ticketText) {
         assumptions.length
             ? `<div class="plan-section">
         <h5>Assumptions</h5>
-        <ul class="plan-assumptions">${assumptions.map((a) => `<li>${escapeHtml(a)}</li>`).join('')}</ul>
+        <ul class="plan-assumptions">
+          ${assumptions
+              .map(
+                  (a, i) =>
+                      `<li${i >= VISIBLE_ASSUMPTIONS ? ' class="plan-extra hidden"' : ''}>${escapeHtml(a)}</li>`,
+              )
+              .join('')}
+        </ul>
+        ${
+            extraAssumptionsCount
+                ? `<button type="button" class="plan-show-more" data-section="assumptions">Show ${extraAssumptionsCount} more assumption${extraAssumptionsCount > 1 ? 's' : ''}</button>`
+                : ''
+        }
       </div>`
             : ''
     }
     <div class="plan-section">
       <h5>Tasks</h5>
       <ul class="plan-tasks"></ul>
+      ${
+          extraTasksCount
+              ? `<button type="button" class="plan-show-more" data-section="tasks">Show ${extraTasksCount} more task${extraTasksCount > 1 ? 's' : ''}</button>`
+              : ''
+      }
     </div>
     <div class="plan-feedback hidden">
       <textarea placeholder="What should change about this plan?"></textarea>
@@ -396,19 +684,27 @@ function renderPlanMessage(plan, conversationId, ticketText) {
       <button type="button" class="plan-approve">Approve &amp; Build</button>
       <button type="button" class="plan-request-changes">Request changes</button>
     </div>
-    <div class="message-meta">${new Date().toLocaleString()}</div>
+    <div class="message-meta">${timestamp ? new Date(timestamp).toLocaleString() : new Date().toLocaleString()}</div>
   `;
 
     const taskList = card.querySelector('.plan-tasks');
-    tasks.forEach((task) => {
+    tasks.forEach((task, i) => {
         const item = document.createElement('li');
-        item.className = 'plan-task';
+        item.className = i >= VISIBLE_TASKS ? 'plan-task plan-extra hidden' : 'plan-task';
         item.dataset.taskId = task.id || '';
         item.innerHTML = `
       <span class="plan-task-id">${escapeHtml(task.id || '')}</span>
       <div class="plan-task-desc" contenteditable="true">${escapeHtml(task.description || '')}</div>
     `;
         taskList.appendChild(item);
+    });
+
+    card.querySelectorAll('.plan-show-more').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const section = btn.closest('.plan-section');
+            section.querySelectorAll('.plan-extra').forEach((el) => el.classList.remove('hidden'));
+            btn.remove();
+        });
     });
 
     card
@@ -431,8 +727,15 @@ function renderPlanMessage(plan, conversationId, ticketText) {
     els.chatWindow.appendChild(row);
     els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
 
-    state.pendingPlan = { conversationId };
-    setComposerLocked(true);
+    if (readOnly) {
+        // Same muted, non-interactive look as a plan that was already resolved in a
+        // live session (buttons disabled, tasks no longer editable) -- reuses
+        // lockPlanCard() rather than duplicating that styling logic.
+        lockPlanCard(card);
+    } else {
+        state.pendingPlan = { conversationId };
+        setComposerLocked(true);
+    }
 }
 
 function lockPlanCard(card) {
@@ -500,6 +803,7 @@ async function approvePlan(card) {
             live.fail('The connection ended before the build finished.');
         }
         await loadHistory();
+        await loadTrace();
     } catch (error) {
         live.fail('The build could not be completed');
         showToast('The build could not be completed', 'error');
@@ -543,6 +847,7 @@ async function requestPlanChanges(card) {
             renderPlanMessage(data.plan, conversationId, card.dataset.ticket);
         }
         await loadHistory();
+        await loadTrace();
     } catch (error) {
         removeTypingIndicator();
         showToast('The request could not be completed', 'error');
@@ -593,11 +898,266 @@ function parseSseChunk(chunk, onEvent) {
     }
 }
 
+const LANGUAGE_BY_EXTENSION = {
+    js: 'javascript',
+    jsx: 'javascript',
+    ts: 'typescript',
+    tsx: 'typescript',
+    py: 'python',
+    json: 'json',
+    css: 'css',
+    html: 'html',
+    md: 'markdown',
+    sql: 'sql',
+    sh: 'bash',
+    yml: 'yaml',
+    yaml: 'yaml',
+};
+
+function inferLanguage(path) {
+    const ext = (path.split('.').pop() || '').toLowerCase();
+    return LANGUAGE_BY_EXTENSION[ext] || 'text';
+}
+
+function countLines(content) {
+    return content ? content.split('\n').length : 0;
+}
+
+/**
+ * Opens the file pane on `fileId` (adding it as a tab if it isn't already open) and
+ * makes it the active tab. Safe to call repeatedly for the same file -- e.g. a retry
+ * rewriting a file that's already open just refreshes its content in place.
+ */
+function openFilePane(fileId) {
+    if (!openFileIds.includes(fileId)) openFileIds.push(fileId);
+    activeFileId = fileId;
+    renderFilePane();
+}
+
+function closeFilePane() {
+    openFileIds = [];
+    activeFileId = null;
+    els.filePane.classList.remove('open');
+    els.filePane.setAttribute('aria-hidden', 'true');
+    renderFileRowActiveStates();
+}
+
+function switchFileTab(fileId) {
+    activeFileId = fileId;
+    renderFilePane();
+}
+
+/** Re-renders the pane's tabs + content from fileStore/openFileIds/activeFileId -- the
+ * only place that reads file content for display, so it's never duplicated elsewhere. */
+function renderFilePane() {
+    const file = fileStore.get(activeFileId);
+    if (!file) return;
+
+    els.filePane.classList.add('open');
+    els.filePane.removeAttribute('aria-hidden');
+
+    els.filePaneTabs.innerHTML = '';
+    if (openFileIds.length > 1) {
+        openFileIds.forEach((id) => {
+            const tabFile = fileStore.get(id);
+            if (!tabFile) return;
+            const tab = document.createElement('button');
+            tab.type = 'button';
+            tab.className = `file-pane-tab ${id === activeFileId ? 'active' : ''}`;
+            tab.textContent = tabFile.path.split('/').pop();
+            tab.title = tabFile.path;
+            tab.addEventListener('click', () => switchFileTab(id));
+            els.filePaneTabs.appendChild(tab);
+        });
+    }
+
+    els.filePaneFilename.textContent = file.path;
+    els.filePaneCode.textContent = file.content;
+    els.filePaneCode.className = `language-${file.language}`;
+    renderFileRowActiveStates();
+}
+
+/** Highlights whichever chat row(s) match the file pane's currently active file, across
+ * every build message rendered so far -- not just the one that opened the pane. */
+function renderFileRowActiveStates() {
+    document.querySelectorAll('.build-file-row').forEach((row) => {
+        row.classList.toggle('active', row.dataset.fileId === activeFileId);
+    });
+}
+
+/**
+ * The "agent trace" panel -- WHY each agent decided what it decided this conversation,
+ * grouped by chat turn (GET /trace, backed by agent_traces; see
+ * agents/ticket_pipeline/flow.py's TicketState.trace and backend/services/research.py
+ * for what gets recorded). Deliberately separate from the chat transcript, and
+ * deliberately short per step -- the actual chat/build response text lives in the
+ * transcript already, this never duplicates it. Opened from the panel-heading button,
+ * not from within any message, and only ever fetched while open.
+ */
+async function toggleTracePane() {
+    if (els.tracePane.classList.contains('open')) {
+        closeTracePane();
+    } else {
+        openTracePane();
+    }
+}
+
+function closeTracePane() {
+    els.tracePane.classList.remove('open');
+    els.tracePane.setAttribute('aria-hidden', 'true');
+    els.traceToggle.classList.remove('active');
+}
+
+async function openTracePane() {
+    els.tracePane.classList.add('open');
+    els.tracePane.removeAttribute('aria-hidden');
+    els.traceToggle.classList.add('active');
+    await loadTrace();
+}
+
+/** Refetches and re-renders the trace, but only when the panel is actually open -- safe
+ * to call after every turn completes (see sendMessage()/approvePlan()/requestPlanChanges())
+ * without wasting a request when nobody's looking at it. */
+async function loadTrace() {
+    if (!els.tracePane.classList.contains('open')) return;
+
+    if (!state.currentConversationId) {
+        els.tracePaneBody.innerHTML =
+            '<div class="trace-empty">Send a message first -- the trace fills in as the Planner, Coder, and Reviewer make decisions.</div>';
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/trace?user_id=${encodeURIComponent(USER_ID)}&conversation_id=${encodeURIComponent(state.currentConversationId)}`,
+        );
+        const data = await response.json();
+        renderTrace(data.turns || []);
+    } catch (error) {
+        console.error(error);
+        els.tracePaneBody.innerHTML =
+            '<div class="trace-empty">Unable to load the agent trace.</div>';
+    }
+}
+
+/**
+ * Renders the trace grouped by chat turn (GET /trace already groups it server-side --
+ * see backend/services/chat.py's get_trace()). Each turn renders as either:
+ *   - a compact one-line row, for a CHAT/SNIPPET turn that never left the Intent
+ *     classifier (identified by its ROUTER marker step), or
+ *   - an expanded set of per-agent step cards, for a TICKET turn (Planner, then
+ *     Coder/Reviewer -- possibly repeated across retry rounds -- then SYSTEM if retries
+ *     were exhausted).
+ */
+function renderTrace(turns) {
+    if (!turns.length) {
+        els.tracePaneBody.innerHTML =
+            '<div class="trace-empty">No agent activity recorded yet for this conversation.</div>';
+        return;
+    }
+    els.tracePaneBody.innerHTML = turns.map(renderTraceTurn).join('');
+}
+
+function renderTraceTurn(turn) {
+    const steps = turn.steps || [];
+    const isDirectResponse = steps.some((step) => step.agent === 'ROUTER');
+    return isDirectResponse ? renderCompactTurn(steps) : renderExpandedTurn(steps);
+}
+
+/** CHAT/SNIPPET turn: the Intent classifier's decision was the whole story -- one small,
+ * visually muted row (badge + one-line reasoning), signaling "nothing more happened
+ * here" rather than competing for attention with an actual TICKET turn's step cards. */
+function renderCompactTurn(steps) {
+    const intentStep = steps.find((step) => step.agent === 'INTENT');
+    if (!intentStep) return '';
+    return `
+    <div class="trace-turn trace-turn-compact">
+      <span class="trace-badge trace-badge-intent">${escapeHtml(intentStep.decision || 'INTENT')}</span>
+      <span class="trace-compact-reasoning">${escapeHtml(intentStep.reasoning || '')}</span>
+      <span class="trace-step-time">${escapeHtml(formatTraceTime(intentStep.timestamp))}</span>
+    </div>
+  `;
+}
+
+/**
+ * TICKET turn: one card per step, in the order they were recorded (INTENT, PLANNER,
+ * then CODER/REVIEWER, then SYSTEM if present). A CODER step and the REVIEWER step that
+ * immediately follows it are rendered together as one numbered "round" -- rounds increment
+ * per CODER step encountered, which is how a Reviewer-rejected retry loop shows up without
+ * the backend having to name the round number explicitly.
+ */
+function renderExpandedTurn(steps) {
+    const cards = [];
+    let round = 0;
+
+    for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        if (step.agent === 'CODER') {
+            round += 1;
+            const next = steps[i + 1];
+            const reviewerStep = next && next.agent === 'REVIEWER' ? next : null;
+            cards.push(renderRound(round, step, reviewerStep));
+            if (reviewerStep) i += 1; // already rendered as part of this round
+        } else {
+            cards.push(renderStepCard(step));
+        }
+    }
+
+    return `<div class="trace-turn trace-turn-expanded">${cards.join('')}</div>`;
+}
+
+function renderRound(roundNumber, coderStep, reviewerStep) {
+    return `
+    <div class="trace-round">
+      <div class="trace-round-label">Round ${roundNumber}</div>
+      <div class="trace-round-steps">
+        ${renderStepCard(coderStep)}
+        ${reviewerStep ? '<span class="trace-round-arrow">&rarr;</span>' + renderStepCard(reviewerStep) : ''}
+      </div>
+    </div>
+  `;
+}
+
+const AGENT_BADGE_CLASS = {
+    INTENT: 'trace-badge-intent',
+    ROUTER: 'trace-badge-router',
+    PLANNER: 'trace-badge-planner',
+    CODER: 'trace-badge-coder',
+    REVIEWER: 'trace-badge-reviewer',
+    SYSTEM: 'trace-badge-system',
+};
+
+const DECISION_CLASS = {
+    approved: 'approved',
+    rejected: 'rejected',
+    max_retries_reached: 'warning',
+};
+
+function renderStepCard(step) {
+    const badgeClass = AGENT_BADGE_CLASS[step.agent] || 'trace-badge-default';
+    const decisionClass = DECISION_CLASS[step.decision] || '';
+    return `
+    <div class="trace-step-card">
+      <div class="trace-step-card-head">
+        <span class="trace-badge ${badgeClass}">${escapeHtml(step.agent || 'AGENT')}</span>
+        <span class="trace-decision ${decisionClass}">${escapeHtml(step.decision || '')}</span>
+        <span class="trace-step-time">${escapeHtml(formatTraceTime(step.timestamp))}</span>
+      </div>
+      <p class="trace-reasoning">${escapeHtml(step.reasoning || '')}</p>
+    </div>
+  `;
+}
+
+function formatTraceTime(timestamp) {
+    return timestamp ? new Date(timestamp).toLocaleString() : '';
+}
+
 /**
  * A chat bubble that fills in live as /build/stream sends events: a status line that
- * updates in place (replacing the old fixed "typing" dots for this phase), and a file
- * appearing with its code the moment the Coder writes it -- instead of the whole
- * response only showing up once the entire build finishes.
+ * updates in place (replacing the old fixed "typing" dots for this phase), and a compact,
+ * clickable row appearing the moment the Coder writes a file -- full content lives only in
+ * the file pane (see openFilePane()/renderFilePane()), so a build with dozens of files
+ * stays scannable instead of turning the chat into an unusable code dump.
  */
 function createLiveBuildMessage() {
     const row = document.createElement('div');
@@ -623,7 +1183,10 @@ function createLiveBuildMessage() {
     const filesEl = card.querySelector('.build-files');
     const summaryEl = card.querySelector('.build-summary');
     const metaEl = card.querySelector('.message-meta');
-    const fileBlocks = new Map();
+    const fileRows = new Map(); // path -> row element, for updating an already-written file
+    // Namespaces this build's file ids so the same path from a different build (e.g. an
+    // earlier turn, or a different conversation) never collides with this one in fileStore.
+    const buildId = `build-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     const scrollDown = () => {
         els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
@@ -635,18 +1198,29 @@ function createLiveBuildMessage() {
             scrollDown();
         },
         upsertFile(path, content) {
-            let block = fileBlocks.get(path);
-            if (!block) {
-                block = document.createElement('div');
-                block.className = 'build-file';
-                block.innerHTML = `
-          <div class="build-file-head"><code>${escapeHtml(path)}</code></div>
-          <pre><code class="build-file-code"></code></pre>
-        `;
-                filesEl.appendChild(block);
-                fileBlocks.set(path, block);
+            const fileId = `${buildId}:${path}`;
+            fileStore.set(fileId, { id: fileId, path, content, language: inferLanguage(path) });
+
+            let fileRow = fileRows.get(path);
+            if (!fileRow) {
+                fileRow = document.createElement('button');
+                fileRow.type = 'button';
+                fileRow.className = 'build-file-row';
+                fileRow.dataset.fileId = fileId;
+                fileRow.addEventListener('click', () => openFilePane(fileId));
+                filesEl.appendChild(fileRow);
+                fileRows.set(path, fileRow);
             }
-            block.querySelector('.build-file-code').textContent = content;
+            const lines = countLines(content);
+            fileRow.innerHTML = `
+        <code class="build-file-row-path">${escapeHtml(path)}</code>
+        <span class="build-file-row-meta">${lines} line${lines === 1 ? '' : 's'}</span>
+      `;
+
+            // A retry can rewrite a file that's already open in the pane -- keep it live
+            // instead of leaving a stale view up.
+            if (activeFileId === fileId) renderFilePane();
+
             scrollDown();
         },
         finish(event) {
@@ -669,6 +1243,7 @@ function createLiveBuildMessage() {
 }
 
 function appendMessage(role, content, timestamp) {
+    clearEmptyState();
     const safeContent =
         typeof content === 'string' ? content : JSON.stringify(content);
     const row = document.createElement('div');
@@ -698,6 +1273,7 @@ function appendMessage(role, content, timestamp) {
  * animation out -- always somewhere between 400ms and 1.8s regardless of length.
  */
 function appendMessageTyped(role, content, timestamp) {
+    clearEmptyState();
     const safeContent =
         typeof content === 'string' ? content : JSON.stringify(content);
     const row = document.createElement('div');
@@ -729,14 +1305,97 @@ function appendMessageTyped(role, content, timestamp) {
     requestAnimationFrame(tick);
 }
 
+// Raw (un-escaped) code behind every rendered code block, keyed by an id embedded in
+// the block's Copy/Download buttons -- so those actions always get back exactly what
+// the model wrote, never the HTML-escaped display text. Not scoped per-message since
+// ids are unique across the whole session; stale entries from replaced/re-rendered
+// blocks (e.g. every frame of appendMessageTyped()'s reveal animation) just sit unused,
+// which is harmless at chat-app scale.
+const codeSnippets = new Map(); // id -> { code, language }
+let codeSnippetCounter = 0;
+
+const FILE_EXTENSION_BY_LANGUAGE = {
+    python: 'py',
+    py: 'py',
+    javascript: 'js',
+    js: 'js',
+    jsx: 'jsx',
+    typescript: 'ts',
+    ts: 'ts',
+    tsx: 'tsx',
+    json: 'json',
+    css: 'css',
+    html: 'html',
+    markdown: 'md',
+    md: 'md',
+    bash: 'sh',
+    sh: 'sh',
+    shell: 'sh',
+    sql: 'sql',
+    yaml: 'yml',
+    yml: 'yml',
+    go: 'go',
+    java: 'java',
+    c: 'c',
+    cpp: 'cpp',
+    rust: 'rs',
+    ruby: 'rb',
+    php: 'php',
+};
+
+function suggestSnippetFilename(language) {
+    const ext = FILE_EXTENSION_BY_LANGUAGE[(language || '').toLowerCase()] || 'txt';
+    return `snippet.${ext}`;
+}
+
+/** Renders one fenced code block as a toolbar (language label + Copy/Download) over a
+ * <pre><code> -- `code` is the RAW, not-yet-escaped block content. */
+function renderCodeBlock(code, language) {
+    const id = `code-${codeSnippetCounter++}`;
+    codeSnippets.set(id, { code, language: language || '' });
+    return `
+    <div class="code-block">
+      <div class="code-block-toolbar">
+        <span class="code-block-lang">${escapeHtml(language || 'text')}</span>
+        <div class="code-block-actions">
+          <button type="button" class="code-block-btn code-block-copy" data-code-id="${id}">Copy</button>
+          <button type="button" class="code-block-btn code-block-download" data-code-id="${id}">Download</button>
+        </div>
+      </div>
+      <pre><code>${escapeHtml(code)}</code></pre>
+    </div>
+  `;
+}
+
 function formatMessage(content) {
-    const escaped = escapeHtml(content);
-    const withCodeBlocks = escaped
-        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    // Fenced code blocks are pulled out of the RAW text first (before HTML-escaping or
+    // the newline -> <br> pass below run on everything else), both so Copy/Download get
+    // pristine code and so a code block's internal newlines never get corrupted into
+    // <br> tags. A null-byte-delimited placeholder holds each block's place until the
+    // rest of the message has been escaped/formatted, then it's swapped back in.
+    const blocks = [];
+    const withPlaceholders = content.replace(
+        /```(\w+)?\n?([\s\S]*?)```/g,
+        (_match, lang, code) => {
+            const index = blocks.length;
+            blocks.push(renderCodeBlock(code.replace(/\n$/, ''), lang));
+            return ` CODEBLOCK${index} `;
+        },
+    );
+
+    const escaped = escapeHtml(withPlaceholders);
+    const withInline = escaped
         .replace(/`([^`]+)`/g, '<code>$1</code>')
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    return `<div>${withCodeBlocks.replace(/\n/g, '<br>')}</div>`;
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+
+    const restored = withInline.replace(
+        / CODEBLOCK(\d+) /g,
+        (_match, index) => blocks[Number(index)],
+    );
+
+    return `<div>${restored}</div>`;
 }
 
 function escapeHtml(value) {

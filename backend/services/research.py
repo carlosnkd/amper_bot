@@ -1,12 +1,14 @@
 import asyncio
 import logging
 import queue
+import uuid
+from datetime import datetime, timezone
 from typing import Awaitable, Callable
 
 from agents.ticket_pipeline.main import build_ticket, plan_ticket, run_ticket_pipeline
 from backend.services.bot.intent import Intent
 from backend.services.bot.summary import Summary
-from backend.cache.conversation_cache import get_conversation
+from backend.services.chat import get_conversation_history, record_trace
 from backend.cache.plan_cache import clear_pending_plan, get_pending_plan, set_pending_plan
 
 logger = logging.getLogger(__name__)
@@ -57,15 +59,43 @@ async def start_plan(
     "Thinking…" for the whole request. Optional and unused by plain /run.
     """
     await _emit(on_phase, "Reading your message…")
-    conversation_history = get_conversation(user_id, conversation_id)
+    conversation_history = get_conversation_history(user_id, conversation_id)
     classification = await intentClassifier.classify(conversation_history, query)
     intent = classification.get("intent")
+    logger.info("Classified intent=%s for conversation_id=%s query=%r", intent, conversation_id, query)
+
+    # One fresh turn_id per incoming message -- every agent-trace step this turn produces
+    # (INTENT here, and PLANNER/CODER/REVIEWER/SYSTEM further down the TICKET path,
+    # possibly across a later, separate /build request -- see build_from_plan()) shares
+    # it, so GET /trace can regroup them into the single card group the panel renders for
+    # this turn. See backend/models.py's AgentTraces docstring.
+    turn_id = str(uuid.uuid4())
+
+    # INTENT is recorded for every message regardless of which branch it takes below --
+    # it's the one agent decision every single turn makes, so it's what keeps CHAT/SNIPPET
+    # turns from showing up as a blank gap in the trace panel.
+    intent_step = {
+        "agent": "INTENT",
+        "decision": intent,
+        "reasoning": classification.get("reasoning") or "No reasoning provided.",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
     # CHAT and SNIPPET are both answered directly, skipping the Planner entirely --
     # SNIPPET is a self-contained ask ("give me a FastAPI script") that doesn't touch
     # this product's own codebase, so there's nothing here to plan or review. See
-    # backend/services/bot/intent.py for what distinguishes the two.
+    # backend/services/bot/intent.py for what distinguishes the two. The trace only ever
+    # gets this marker step, never the actual reply text -- that's already in the chat
+    # bubble, duplicating it into the trace would just be noise.
     if intent in ("CHAT", "SNIPPET"):
+        router_step = {
+            "agent": "ROUTER",
+            "decision": "direct_response",
+            "reasoning": "No Planner/Coder/Reviewer needed for this intent type.",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        record_trace(user_id, conversation_id, turn_id, [intent_step, router_step])
+
         await _emit(on_phase, "Writing that up…" if intent == "SNIPPET" else "Got it — replying…")
         summary = await _safe_summary(conversation_history, query)
         result = {
@@ -76,10 +106,13 @@ async def start_plan(
         }
         return result, summary
 
+    record_trace(user_id, conversation_id, turn_id, [intent_step])
+
     await _emit(on_phase, "Planning the work…")
     result = await plan_ticket(query, conversation_id)
     if result.get("plan"):
-        set_pending_plan(conversation_id, query, result["plan"])
+        set_pending_plan(conversation_id, query, result["plan"], turn_id)
+    record_trace(user_id, conversation_id, turn_id, result.get("trace"))
 
     await _emit(on_phase, "Wrapping up…")
     summary = await _safe_summary(conversation_history, query)
@@ -91,18 +124,27 @@ async def revise_plan(user_id: str, conversation_id: str, feedback: str):
     """
     Phase 1b: re-runs the Planner with the user's requested changes folded in, against
     whatever plan is currently pending for this conversation.
+
+    This is its own chat turn (the user typed new feedback), so it gets its own fresh
+    turn_id rather than reusing the original plan-proposal turn's -- and since it's the
+    one that becomes "the pending plan" going forward, THIS turn_id is what
+    build_from_plan() will pick up if the user approves it. No INTENT step here: the
+    intent for a "request changes" reply is already known (it's a revision of a plan
+    still on the table), so there's no fresh classification decision to record.
     """
     pending = get_pending_plan(conversation_id)
     ticket = (pending or {}).get("ticket") or feedback
     previous_plan = (pending or {}).get("plan")
+    turn_id = str(uuid.uuid4())
 
     result = await plan_ticket(
         ticket, conversation_id, plan_feedback=feedback, previous_plan=previous_plan
     )
     if result.get("plan"):
-        set_pending_plan(conversation_id, ticket, result["plan"])
+        set_pending_plan(conversation_id, ticket, result["plan"], turn_id)
+    record_trace(user_id, conversation_id, turn_id, result.get("trace"))
 
-    conversation_history = get_conversation(user_id, conversation_id)
+    conversation_history = get_conversation_history(user_id, conversation_id)
     summary = await _safe_summary(conversation_history, feedback)
 
     return result, summary
@@ -121,11 +163,19 @@ async def build_from_plan(
     """
     pending = get_pending_plan(conversation_id)
     resolved_ticket = ticket or (pending or {}).get("ticket") or ""
+    # Reuse the turn_id the plan was proposed (or last revised) under, so the Coder/
+    # Reviewer/SYSTEM steps this produces land in the SAME trace-panel group as that
+    # plan, even though this is a separate HTTP request. Only falls back to a fresh one if
+    # plan_cache doesn't have it (e.g. a restart wiped the in-memory pending-plan store --
+    # see plan_cache.py's own docstring on that limitation) -- worst case this build just
+    # starts its own group instead of failing.
+    turn_id = (pending or {}).get("turn_id") or str(uuid.uuid4())
     clear_pending_plan(conversation_id)
 
     result = await build_ticket(resolved_ticket, conversation_id, plan, max_retries=max_retries)
+    record_trace(user_id, conversation_id, turn_id, result.get("trace"))
 
-    conversation_history = get_conversation(user_id, conversation_id)
+    conversation_history = get_conversation_history(user_id, conversation_id)
     summary_source = result.get("code_summary") or resolved_ticket or "Implementation"
     summary = await _safe_summary(conversation_history, summary_source)
 
@@ -169,7 +219,7 @@ async def run_query(user_id: str, query: str, conversation_id: str, max_retries:
     """One-shot Planner -> Coder -> Reviewer with no approval checkpoint. Kept for /run_ticket."""
     result = await run_ticket_pipeline(query, conversation_id, max_retries=max_retries)
 
-    conversation_history = get_conversation(user_id, conversation_id)
+    conversation_history = get_conversation_history(user_id, conversation_id)
     summary = await _safe_summary(conversation_history, query)
 
     return result, summary

@@ -1,0 +1,465 @@
+All files are written to the workspace. Summary followed by complete contents.
+
+**Summary (file — what it does)**
+```
+app/__init__.py        — Application package marker with version string.
+app/config.py          — Stdlib-only Settings (API key, toggles, rate limits) + public_paths whitelist that includes /ping.
+app/security.py        — Global API-key auth middleware; skips any path in Settings.public_paths (so /ping is credential-free).
+app/rate_limit.py      — Fixed-window rate-limit middleware reusing the same public-path whitelist, so /ping is never throttled.
+app/schemas/__init__.py— Schemas package marker.
+app/schemas/health.py  — HealthResponse and PingResponse pydantic response models.
+app/routers/__init__.py— Exposes the health and items routers.
+app/routers/health.py  — Public system router: GET /health and the new GET /ping (response_model, summary, tags, 200 example).
+app/routers/items.py   — Example authenticated router under /api/v1 proving the middleware still guards other routes.
+app/main.py            — FastAPI entrypoint/create_app: registers both middlewares and includes health router with no prefix so path is exactly /ping.
+tests/__init__.py      — Test package marker.
+tests/conftest.py      — Pytest fixtures building the app with test settings and a TestClient.
+tests/test_ping.py     — Tests: /ping returns 200 + {"pong": True}, needs no auth headers, isn't rate limited, protected route still 401s, OpenAPI entry is correct.
+README.md              — Docs incl. API endpoint table with the GET /ping line and the public-path/auth explanation.
+requirements.txt       — Runtime and test dependencies.
+pytest.ini             — Pytest config pointing at tests/.
+```
+
+---
+
+**app/__init__.py**
+```python
+"""Application package."""
+
+__version__ = "0.1.0"
+```
+
+**app/config.py**
+```python
+"""Application settings.
+
+Kept dependency-free (stdlib only) so the app boots in any environment.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from functools import lru_cache
+from typing import FrozenSet
+
+
+def _public_paths() -> FrozenSet[str]:
+    """Paths reachable without credentials and without rate limiting.
+
+    `/ping` is a liveness probe and therefore lives here alongside the other
+    unauthenticated system/documentation endpoints.
+    """
+    return frozenset(
+        {
+            "/ping",
+            "/health",
+            "/docs",
+            "/docs/oauth2-redirect",
+            "/redoc",
+            "/openapi.json",
+        }
+    )
+
+
+@dataclass(frozen=True)
+class Settings:
+    app_name: str = "Example Service"
+    api_key: str = field(default_factory=lambda: os.getenv("API_KEY", "dev-secret-key"))
+    auth_enabled: bool = field(
+        default_factory=lambda: os.getenv("AUTH_ENABLED", "1") not in {"0", "false", "False"}
+    )
+    rate_limit_enabled: bool = field(
+        default_factory=lambda: os.getenv("RATE_LIMIT_ENABLED", "1")
+        not in {"0", "false", "False"}
+    )
+    rate_limit_requests: int = field(
+        default_factory=lambda: int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
+    )
+    rate_limit_window_seconds: float = field(
+        default_factory=lambda: float(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+    )
+    public_paths: FrozenSet[str] = field(default_factory=_public_paths)
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+```
+
+**app/security.py**
+```python
+"""Global API-key authentication middleware.
+
+Every route is protected by default; the paths listed in
+``Settings.public_paths`` (which includes ``/ping``) are exempt.
+"""
+
+from __future__ import annotations
+
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+
+from app.config import Settings
+
+API_KEY_HEADER = "X-API-Key"
+
+
+def is_public_path(path: str, settings: Settings) -> bool:
+    """Return True when ``path`` must be served without credentials."""
+    normalised = path if path == "/" else path.rstrip("/")
+    return normalised in settings.public_paths
+
+
+class ApiKeyAuthMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, settings: Settings) -> None:
+        super().__init__(app)
+        self.settings = settings
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        if not self.settings.auth_enabled or is_public_path(request.url.path, self.settings):
+            return await call_next(request)
+
+        provided = request.headers.get(API_KEY_HEADER)
+        if not provided or provided != self.settings.api_key:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Missing or invalid API key"},
+            )
+        return await call_next(request)
+```
+
+**app/rate_limit.py**
+```python
+"""Very small in-process fixed-window rate limiter.
+
+Shares the public-path whitelist with the auth middleware so liveness probes
+(``/ping``) are never throttled.
+"""
+
+from __future__ import annotations
+
+import time
+from collections import defaultdict
+from typing import Dict, List
+
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+
+from app.config import Settings
+from app.security import is_public_path
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, settings: Settings) -> None:
+        super().__init__(app)
+        self.settings = settings
+        self._hits: Dict[str, List[float]] = defaultdict(list)
+
+    def _client_key(self, request: Request) -> str:
+        if request.client and request.client.host:
+            return request.client.host
+        return "anonymous"
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        if not self.settings.rate_limit_enabled or is_public_path(
+            request.url.path, self.settings
+        ):
+            return await call_next(request)
+
+        now = time.monotonic()
+        window = self.settings.rate_limit_window_seconds
+        key = self._client_key(request)
+        recent = [ts for ts in self._hits[key] if now - ts < window]
+
+        if len(recent) >= self.settings.rate_limit_requests:
+            self._hits[key] = recent
+            return JSONResponse(status_code=429, content={"detail": "Too many requests"})
+
+        recent.append(now)
+        self._hits[key] = recent
+        return await call_next(request)
+```
+
+**app/schemas/__init__.py**
+```python
+"""Pydantic schemas."""
+```
+
+**app/schemas/health.py**
+```python
+"""Response schemas for the health/system router.
+
+Written to be compatible with both pydantic v1 and v2 (no version-specific
+config blocks); concrete examples live in the route's ``responses`` metadata.
+"""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+
+class HealthResponse(BaseModel):
+    """Payload returned by ``GET /health``."""
+
+    status: str = Field(default="ok", description="Overall service status.")
+
+
+class PingResponse(BaseModel):
+    """Payload returned by ``GET /ping``."""
+
+    pong: bool = Field(default=True, description="Always true when the app is alive.")
+```
+
+**app/routers/__init__.py**
+```python
+"""API routers."""
+
+from app.routers import health, items
+
+__all__ = ["health", "items"]
+```
+
+**app/routers/health.py**
+```python
+"""Health / system router.
+
+All routes here are public (see ``Settings.public_paths``): they carry no
+authentication and are never rate limited, so orchestrators can probe them.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, status
+
+from app.schemas.health import HealthResponse, PingResponse
+
+router = APIRouter(tags=["system"])
+
+
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Service health check",
+    responses={200: {"content": {"application/json": {"example": {"status": "ok"}}}}},
+)
+async def health() -> HealthResponse:
+    """Return a static health payload. Does not probe dependencies."""
+    return HealthResponse(status="ok")
+
+
+@router.get(
+    "/ping",
+    response_model=PingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Liveness probe",
+    responses={200: {"content": {"application/json": {"example": {"pong": True}}}}},
+)
+async def ping() -> PingResponse:
+    """Unauthenticated liveness probe.
+
+    Always returns ``{"pong": true}`` with HTTP 200. It touches no database,
+    cache, or downstream service.
+    """
+    return PingResponse(pong=True)
+```
+
+**app/routers/items.py**
+```python
+"""Example protected router.
+
+Exists so the global auth/rate-limit middleware has something to guard; it is
+mounted under the ``/api/v1`` prefix, unlike the public system routes.
+"""
+
+from __future__ import annotations
+
+from typing import Dict, List
+
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/api/v1", tags=["items"])
+
+
+@router.get("/items", summary="List items")
+async def list_items() -> List[Dict[str, str]]:
+    """Return a static list of items (requires a valid API key)."""
+    return [{"id": "1", "name": "widget"}]
+```
+
+**app/main.py**
+```python
+"""FastAPI application entrypoint."""
+
+from __future__ import annotations
+
+from fastapi import FastAPI
+
+from app.config import Settings, get_settings
+from app.rate_limit import RateLimitMiddleware
+from app.routers import health, items
+from app.security import ApiKeyAuthMiddleware
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    settings = settings or get_settings()
+
+    app = FastAPI(
+        title=settings.app_name,
+        version="0.1.0",
+        openapi_tags=[
+            {"name": "system", "description": "Public health and liveness endpoints."},
+            {"name": "items", "description": "Authenticated business endpoints."},
+        ],
+    )
+
+    # Outermost middleware runs first; both consult Settings.public_paths so
+    # /ping (and /health, /docs, /openapi.json) stay reachable without auth.
+    app.add_middleware(RateLimitMiddleware, settings=settings)
+    app.add_middleware(ApiKeyAuthMiddleware, settings=settings)
+
+    # No prefix: the final paths are exactly /health and /ping.
+    app.include_router(health.router)
+    app.include_router(items.router)
+
+    return app
+
+
+app = create_app()
+```
+
+**tests/__init__.py**
+```python
+"""Test package."""
+```
+
+**tests/conftest.py**
+```python
+"""Shared pytest fixtures."""
+
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.config import Settings
+from app.main import create_app
+
+
+@pytest.fixture()
+def settings() -> Settings:
+    return Settings(api_key="test-key")
+
+
+@pytest.fixture()
+def client(settings: Settings) -> TestClient:
+    with TestClient(create_app(settings)) as test_client:
+        yield test_client
+```
+
+**tests/test_ping.py**
+```python
+"""Tests for the public liveness probe GET /ping."""
+
+from __future__ import annotations
+
+from fastapi.testclient import TestClient
+
+from app.security import API_KEY_HEADER
+
+
+def test_ping_returns_200_and_pong_true(client: TestClient) -> None:
+    response = client.get("/ping")
+
+    assert response.status_code == 200
+    assert response.json() == {"pong": True}
+
+
+def test_ping_requires_no_auth_headers(client: TestClient) -> None:
+    # Explicitly no credentials supplied.
+    response = client.get("/ping", headers={})
+
+    assert response.status_code == 200
+    assert API_KEY_HEADER not in response.request.headers
+    assert response.json() == {"pong": True}
+
+
+def test_ping_is_not_rate_limited(settings, client: TestClient) -> None:
+    for _ in range(settings.rate_limit_requests + 5):
+        response = client.get("/ping")
+        assert response.status_code == 200
+
+
+def test_protected_route_still_requires_api_key(client: TestClient) -> None:
+    assert client.get("/api/v1/items").status_code == 401
+    ok = client.get("/api/v1/items", headers={API_KEY_HEADER: "test-key"})
+    assert ok.status_code == 200
+
+
+def test_ping_documented_in_openapi(client: TestClient) -> None:
+    schema = client.get("/openapi.json").json()
+    operation = schema["paths"]["/ping"]["get"]
+
+    assert operation["summary"] == "Liveness probe"
+    assert operation["tags"] == ["system"]
+    assert "PingResponse" in str(operation["responses"]["200"])
+```
+
+**README.md**
+```markdown
+# Example Service
+
+A small FastAPI service with a public system router and an authenticated API.
+
+## Running
+
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Interactive docs: <http://localhost:8000/docs>
+
+## API endpoints
+
+| Method | Path            | Auth        | Description                                                        |
+| ------ | --------------- | ----------- | ------------------------------------------------------------------ |
+| GET    | `/ping`         | none        | Liveness probe; always returns `200` with `{"pong": true}`.          |
+| GET    | `/health`       | none        | Service health check; returns `{"status": "ok"}`.                    |
+| GET    | `/api/v1/items` | `X-API-Key` | List items.                                                          |
+
+## Authentication
+
+All routes require the `X-API-Key` header except the public paths listed in
+`Settings.public_paths` (`/ping`, `/health`, `/docs`, `/redoc`,
+`/openapi.json`). The same whitelist is used by the rate-limiting middleware,
+so `/ping` is never throttled.
+
+## Tests
+
+```bash
+pytest
+```
+```
+
+**requirements.txt**
+```
+fastapi>=0.100
+uvicorn>=0.23
+httpx>=0.24
+pytest>=7.0
+```
+
+**pytest.ini**
+```ini
+[pytest]
+testpaths = tests
+python_files = test_*.py
+```

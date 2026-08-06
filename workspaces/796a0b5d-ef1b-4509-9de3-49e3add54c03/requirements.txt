@@ -1,0 +1,5 @@
+# Runtime
+redis>=4.2,<6 ; python_version >= "3.8"   # shared sliding-window rate limit state
+
+# Dev / test
+pytest>=7.0

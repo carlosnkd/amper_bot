@@ -1,0 +1,178 @@
+openapi: 3.0.3
+info:
+  title: Chat service
+  version: 1.1.0
+  description: |
+    Chat API.
+
+    ## Rate limiting
+
+    `POST /chat` is limited to **10 requests per 60 seconds** (sliding window)
+    per authenticated user, or per client IP for anonymous callers. The policy
+    is configurable via `RATE_LIMIT_CHAT_MAX_REQUESTS` and
+    `RATE_LIMIT_CHAT_WINDOW_SECONDS`, and can be turned off entirely with
+    `RATE_LIMIT_ENABLED=false` (useful for local development).
+
+    Every `/chat` response carries `X-RateLimit-Limit`,
+    `X-RateLimit-Remaining` and `X-RateLimit-Reset`. Rejections also carry
+    `Retry-After`. Rejected requests never reach the model.
+
+servers:
+  - url: https://api.example.com
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      description: Not rate limited.
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /chat:
+    post:
+      summary: Send a chat message
+      description: |
+        Rate limited to 10 requests / 60 seconds per user (or per client IP for
+        anonymous callers) by default. The limit counts requests, not the number
+        of messages in the body.
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: Model reply
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/XRateLimitLimit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/XRateLimitRemaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/XRateLimitReset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+        "400":
+          description: Invalid request body
+          headers:
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/XRateLimitLimit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/XRateLimitRemaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/XRateLimitReset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: invalid_request
+                  message: "Field 'messages' must be a non-empty array"
+        "429":
+          description: |
+            Rate limit exceeded. The request was rejected before any model call
+            was made; retry after the number of seconds in `Retry-After`.
+          headers:
+            Retry-After:
+              description: Whole seconds to wait before retrying.
+              schema:
+                type: integer
+                minimum: 1
+                example: 42
+            X-RateLimit-Limit:
+              $ref: "#/components/headers/XRateLimitLimit"
+            X-RateLimit-Remaining:
+              $ref: "#/components/headers/XRateLimitRemaining"
+            X-RateLimit-Reset:
+              $ref: "#/components/headers/XRateLimitReset"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: rate_limit_exceeded
+                  message: "Too many messages. Try again in 42 seconds."
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  headers:
+    XRateLimitLimit:
+      description: Requests allowed in the current window.
+      schema:
+        type: integer
+        example: 10
+    XRateLimitRemaining:
+      description: Requests remaining in the current window.
+      schema:
+        type: integer
+        example: 7
+    XRateLimitReset:
+      description: Unix timestamp (seconds) when a slot frees up.
+      schema:
+        type: integer
+        example: 1735689600
+
+  schemas:
+    Message:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+
+    ChatRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Message"
+
+    ChatResponse:
+      type: object
+      properties:
+        message:
+          $ref: "#/components/schemas/Message"
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: rate_limit_exceeded
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
