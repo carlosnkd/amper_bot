@@ -1,0 +1,19 @@
+"""Allow ``python -m app`` as a development entrypoint."""
+
+import uvicorn
+
+from app.core.config import get_settings
+
+
+def main() -> None:
+    settings = get_settings()
+    uvicorn.run(
+        "app.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=settings.debug,
+    )
+
+
+if __name__ == "__main__":
+    main()
