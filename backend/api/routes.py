@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import queue
 import uuid
 from pathlib import Path
@@ -7,6 +8,7 @@ from backend.main import get_db
 from fastapi import APIRouter, UploadFile, File, Form, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Optional
+from agents.common.errors import friendly_error_message
 from backend.services.research import build_from_plan, build_from_plan_worker, revise_plan, start_plan
 from sqlalchemy.orm import Session
 from backend.services.chat import (
@@ -19,6 +21,7 @@ from backend.services.chat import (
 from agents.ticket_pipeline.main import run_ticket_pipeline
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # repo root -- routes.py is backend/api/routes.py, so two parents up.
 README_PATH = Path(__file__).resolve().parents[2] / "README.md"
@@ -68,6 +71,32 @@ def _plan_message_payload(plan: dict | None, ticket: str):
     return {"type": "plan", "text": text, "plan": plan, "ticket": ticket}
 
 
+def _plan_turn_message(result: dict, ticket: str):
+    """
+    What actually gets persisted as the assistant message for a Planner-phase turn --
+    shared by /run, /run/stream, and /replan so all three treat a failed Planner call
+    the same way.
+
+    Priority: chat_reply (CHAT/SNIPPET, Planner never ran) > error (Planner/Intent call
+    failed) > the plan card (or its "couldn't come up with a plan" fallback).
+
+    Without the `error` branch, a failed call's friendly message (see
+    agents/common/errors.py) was shown live via the SSE "error" field but NEVER
+    persisted -- record_message() always got _plan_message_payload(None, ...)'s
+    generic "I couldn't come up with a plan for that -- could you rephrase the ticket?"
+    instead, since that fallback doesn't know an error even happened. history replay
+    then showed a DIFFERENT, less informative message than what was shown live,
+    silently losing the actual reason the moment the SSE connection closed.
+    """
+    chat_reply = result.get("chat_reply")
+    if chat_reply is not None:
+        return chat_reply
+    error = result.get("error")
+    if error:
+        return error
+    return _plan_message_payload(result.get("plan"), ticket)
+
+
 @router.post('/run')
 async def run_agent(
     user_id: str = Form(...),
@@ -92,11 +121,7 @@ async def run_agent(
     # as chit-chat/a snippet rather than a ticket -- the Planner never ran, so there's
     # no plan to render, just this direct reply.
     chat_reply = result.get("chat_reply")
-    assistant_message = (
-        chat_reply
-        if chat_reply is not None
-        else _plan_message_payload(result.get("plan"), result.get("ticket") or query)
-    )
+    assistant_message = _plan_turn_message(result, result.get("ticket") or query)
 
     record_message(user_id, conversation_id, "user", query)
     record_message(user_id, conversation_id, "assistant", assistant_message)
@@ -145,7 +170,8 @@ async def run_agent_stream(
                 result, summary = await start_plan(user_id, query, conversation_id, on_phase=on_phase)
                 await phase_queue.put({"type": "done", "result": result, "summary": summary})
             except Exception as exc:  # noqa: BLE001 -- reported to the client as a stream event
-                await phase_queue.put({"type": "error", "message": str(exc)})
+                logger.exception("Error in /run/stream")
+                await phase_queue.put({"type": "error", "message": friendly_error_message(exc)})
 
         task = asyncio.create_task(run_and_finish())
 
@@ -157,11 +183,7 @@ async def run_agent_stream(
                     result = event["result"]
                     summary = event["summary"]
                     chat_reply = result.get("chat_reply")
-                    assistant_message = (
-                        chat_reply
-                        if chat_reply is not None
-                        else _plan_message_payload(result.get("plan"), result.get("ticket") or query)
-                    )
+                    assistant_message = _plan_turn_message(result, result.get("ticket") or query)
 
                     record_message(user_id, conversation_id, "user", query)
                     record_message(user_id, conversation_id, "assistant", assistant_message)
@@ -209,7 +231,7 @@ async def replan(
         user_id,
         conversation_id,
         "assistant",
-        _plan_message_payload(result.get("plan"), result.get("ticket") or feedback),
+        _plan_turn_message(result, result.get("ticket") or feedback),
     )
     end_conversation(user_id, conversation_id, db, summary)
 

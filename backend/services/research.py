@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Awaitable, Callable
 
+from agents.common.errors import friendly_error_message
 from agents.ticket_pipeline.main import build_ticket, plan_ticket, run_ticket_pipeline
 from backend.services.bot.intent import Intent
 from backend.services.bot.summary import Summary
@@ -210,7 +211,8 @@ def build_from_plan_worker(
         )
         progress_queue.put({"type": "done", "result": result, "summary": summary})
     except Exception as exc:  # noqa: BLE001 -- reported to the client as a stream event
-        progress_queue.put({"type": "error", "message": str(exc)})
+        logger.exception("Error in build_from_plan_worker")
+        progress_queue.put({"type": "error", "message": friendly_error_message(exc)})
     finally:
         set_active_queue(None)
 

@@ -7,6 +7,7 @@ from crewai import Crew, Process
 from crewai.flow.flow import Flow, start
 from pydantic import BaseModel, Field
 
+from agents.common.errors import friendly_error_message
 from agents.ticket_pipeline.agent import coder_agent, planner_agent, reviewer_agent
 from agents.ticket_pipeline.events import publish_phase
 from agents.ticket_pipeline.tasks import (
@@ -185,7 +186,7 @@ class TicketPlanFlow(_TicketSteps, Flow[TicketState]):
             self._plan()
         except Exception as exc:
             logger.exception("Error planning ticket")
-            self.state.error = str(exc)
+            self.state.error = friendly_error_message(exc)
         return self.state
 
 
@@ -238,7 +239,7 @@ class TicketBuildFlow(_TicketSteps, Flow[TicketState]):
                 )
         except Exception as exc:
             logger.exception("Error building ticket")
-            self.state.error = str(exc)
+            self.state.error = friendly_error_message(exc)
 
         self.state.history.append(
             {
@@ -296,7 +297,7 @@ class TicketFlow(_TicketSteps, Flow[TicketState]):
                 self.state.retry_count += 1
         except Exception as exc:
             logger.exception("Error running ticket pipeline")
-            self.state.error = str(exc)
+            self.state.error = friendly_error_message(exc)
 
         self.state.history.append(
             {
