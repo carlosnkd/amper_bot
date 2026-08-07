@@ -909,6 +909,35 @@ svg {
     font-size: 0.74rem;
     margin-top: 8px;
 }
+/* Record of what was attached to a sent message -- reuses .file-list/.file-chip
+   (composer, styles below) but sits inside a message-card instead of above the composer,
+   so it needs its own spacing. Unlike the composer's chip (a plain removable tag), this
+   one IS a button (opens the file pane on click -- see wireMessageAttachments() in
+   app.js), so it gets a hover state instead of a remove button. Selectors below are
+   compounded as .file-chip.message-attachment-chip (not just .message-attachment-chip)
+   so they beat .file-chip's own same-specificity background/font-size on
+   background/font-size regardless of which rule happens to sit later in this file. */
+.message-attachments {
+    padding: 0;
+    margin: 2px 0 0;
+}
+.file-chip.message-attachment-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 0.78rem;
+    transition:
+        background 150ms ease,
+        border-color 150ms ease;
+}
+.file-chip.message-attachment-chip:hover {
+    background: var(--surface-alt);
+    border-color: var(--border-strong);
+}
+.file-chip.message-attachment-chip svg {
+    width: 13px;
+    height: 13px;
+    color: var(--muted);
+}
 
 .typing-indicator {
     display: flex;

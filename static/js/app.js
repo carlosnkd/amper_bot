@@ -27,6 +27,9 @@ const ICONS = {
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>',
     user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"></circle><path d="M5 20c0-3.6 3.1-6.5 7-6.5s7 2.9 7 6.5"></path></svg>',
     bot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="2.5"></rect><line x1="12" y1="3" x2="12" y2="8"></line><circle cx="12" cy="3" r="1.1"></circle><line x1="8" y1="13.5" x2="8" y2="15"></line><line x1="16" y1="13.5" x2="16" y2="15"></line></svg>',
+    // Same paperclip glyph as the composer's upload button (index.html) -- reused on the
+    // read-only attachment chips appendMessage() renders under a sent user message.
+    file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05 12.25 20.24a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.19 5.19l-9.2 9.19a1.83 1.83 0 0 1-2.59-2.59l8.49-8.48"></path></svg>',
 };
 
 const els = {};
@@ -496,7 +499,7 @@ async function selectConversation(conversationId) {
     );
     if (!conversation) return;
     els.chatWindow.innerHTML = '';
-    (conversation.messages || []).forEach((message) => {
+    (conversation.messages || []).forEach((message, index) => {
         const content = message.content;
         // A structured plan payload (see backend/api/routes.py's
         // _plan_message_payload()) -- rebuild the real plan card instead of dumping
@@ -507,7 +510,8 @@ async function selectConversation(conversationId) {
                 timestamp: message.timestamp,
             });
         } else {
-            appendMessage(message.role, content, message.timestamp);
+            const attachments = registerHistoryAttachments(conversationId, index, message.attachments);
+            appendMessage(message.role, content, message.timestamp, attachments);
         }
     });
     if (!conversation.messages?.length) {
@@ -524,17 +528,31 @@ async function sendMessage() {
     state.isGenerating = true;
     els.sendBtn.classList.add('hidden');
     els.stopBtn.classList.remove('hidden');
-    appendMessage('user', prompt, new Date().toISOString());
+
+    // Snapshot the attached files before the composer's list is cleared below -- this is
+    // what gets built into the request AND (via registerSentAttachment) what renders as
+    // the read-only, clickable attachment chips on the message bubble, so the two never
+    // disagree about what was actually sent.
+    const sentFiles = state.selectedFiles;
+    const sentAttachments = await Promise.all(sentFiles.map(registerSentAttachment));
+
+    appendMessage('user', prompt, new Date().toISOString(), sentAttachments);
     els.messageInput.value = '';
     autoResize();
     showTypingIndicator('Reading your message…');
+
+    // Clear the composer's attachment chips now that they've moved to the message bubble
+    // above -- otherwise they sit there looking attached to nothing ("frozen") until a
+    // full conversation reset, and would silently get re-sent with every message after.
+    state.selectedFiles = [];
+    renderFiles();
 
     const formData = new FormData();
     formData.append('user_id', USER_ID);
     formData.append('query', prompt);
     if (state.currentConversationId)
         formData.append('conversation_id', state.currentConversationId);
-    state.selectedFiles.forEach((file) => formData.append('file', file));
+    sentFiles.forEach((file) => formData.append('file', file));
 
     try {
         const response = await fetch(`${API_BASE}/run/stream`, {
@@ -923,6 +941,74 @@ function countLines(content) {
     return content ? content.split('\n').length : 0;
 }
 
+// Mirrors backend/api/routes.py's MAX_ATTACHMENT_CHARS / binary-format sniffing -- kept in
+// sync by hand since this is only a client-side preview convenience, not what the model
+// actually sees (that's decoded server-side, more robustly -- see _extract_attachment()).
+const MAX_ATTACHMENT_PREVIEW_CHARS = 20_000;
+const UNREADABLE_ATTACHMENT_TYPES = /^image\/|^application\/pdf$|officedocument|^application\/zip$/;
+
+function looksBinary(file) {
+    if (file.type) return UNREADABLE_ATTACHMENT_TYPES.test(file.type);
+    // Some OS/browser combos don't report a MIME type at all -- fall back to extension.
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    return ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'docx', 'xlsx', 'pptx', 'zip'].includes(ext);
+}
+
+/**
+ * Registers a just-selected File into fileStore under a fresh id so its composer chip
+ * (rendered on the just-sent message, see sendMessage()) is clickable immediately,
+ * without waiting on a server round-trip. Reads the file client-side (best-effort, UTF-8
+ * only via File.text() -- unlike the backend's multi-encoding fallback in
+ * _extract_attachment(), so a rare non-UTF-8 text file may preview with minor mojibake
+ * here even though the model/DB got it decoded correctly). Recognized binary types get a
+ * placeholder instead of raw garbage bytes.
+ */
+async function registerSentAttachment(file) {
+    const fileId = `sent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    let content;
+    if (looksBinary(file)) {
+        const ext = (file.name.split('.').pop() || 'file').toUpperCase();
+        content = `Preview not available for this file type (${ext}).`;
+    } else {
+        try {
+            const text = await file.text();
+            content =
+                text.length > MAX_ATTACHMENT_PREVIEW_CHARS
+                    ? `${text.slice(0, MAX_ATTACHMENT_PREVIEW_CHARS)}\n\n[...truncated]`
+                    : text;
+        } catch (error) {
+            content = 'Preview not available for this file.';
+        }
+    }
+    fileStore.set(fileId, { id: fileId, path: file.name, content, language: inferLanguage(file.name) });
+    return { name: file.name, fileId };
+}
+
+/**
+ * Registers a past conversation's persisted attachments (see backend/api/routes.py's
+ * _extract_attachment()/record_message()) into fileStore so their chips are clickable on
+ * history replay too -- same fileStore/openFilePane mechanism as a just-sent message's,
+ * just sourced from the server's more robust decode instead of a fresh browser File.
+ * `msgIndex` namespaces the ids so the same filename in two different messages (or two
+ * different conversations) never collides in fileStore.
+ */
+function registerHistoryAttachments(conversationId, msgIndex, rawAttachments) {
+    if (!rawAttachments || !rawAttachments.length) return null;
+    return rawAttachments.map((attachment, attIndex) => {
+        const fileId = `hist-${conversationId}-${msgIndex}-${attIndex}`;
+        const content = attachment.readable
+            ? `${attachment.text || ''}${attachment.truncated ? '\n\n[...truncated]' : ''}`
+            : `Preview not available for this file${attachment.kind ? ` (${attachment.kind})` : ''}.`;
+        fileStore.set(fileId, {
+            id: fileId,
+            path: attachment.name,
+            content,
+            language: attachment.readable ? inferLanguage(attachment.name) : 'text',
+        });
+        return { name: attachment.name, fileId };
+    });
+}
+
 /**
  * Opens the file pane on `fileId` (adding it as a tab if it isn't already open) and
  * makes it the active tab. Safe to call repeatedly for the same file -- e.g. a retry
@@ -1242,7 +1328,36 @@ function createLiveBuildMessage() {
     };
 }
 
-function appendMessage(role, content, timestamp) {
+/**
+ * Read-only "N file(s) attached to this turn" chip row, rendered under a sent user
+ * message so the attachment isn't just a fire-and-forget -- see appendMessage()'s
+ * `attachments` param. Unlike the composer's own .file-chip (which has a remove button),
+ * each chip here is itself a button that opens the file pane on click -- clickability
+ * requires the entry to already be registered in fileStore under `fileId` (see
+ * registerSentAttachment() for a just-sent message, registerHistoryAttachments() for one
+ * loaded from a past conversation) BEFORE this renders, since wireMessageAttachments()
+ * below only wires up the click, it doesn't create the fileStore entry itself.
+ */
+function renderMessageAttachments(attachments) {
+    if (!attachments || !attachments.length) return '';
+    const chips = attachments
+        .map(
+            ({ name, fileId }) =>
+                `<button type="button" class="file-chip message-attachment-chip" data-file-id="${escapeHtml(fileId)}">${ICONS.file}<span>${escapeHtml(name)}</span></button>`,
+        )
+        .join('');
+    return `<div class="file-list message-attachments">${chips}</div>`;
+}
+
+/** Wires each attachment chip's click -> openFilePane(fileId) -- separate from
+ * renderMessageAttachments() because innerHTML-inserted markup carries no listeners. */
+function wireMessageAttachments(card) {
+    card.querySelectorAll('.message-attachment-chip').forEach((chip) => {
+        chip.addEventListener('click', () => openFilePane(chip.dataset.fileId));
+    });
+}
+
+function appendMessage(role, content, timestamp, attachments) {
     clearEmptyState();
     const safeContent =
         typeof content === 'string' ? content : JSON.stringify(content);
@@ -1256,9 +1371,11 @@ function appendMessage(role, content, timestamp) {
       <h4>${role === 'user' ? 'You' : 'Agent'}</h4>
     </div>
     <div class="message-body">${formatMessage(safeContent)}</div>
+    ${renderMessageAttachments(attachments)}
     <div class="message-meta">${timestamp ? new Date(timestamp).toLocaleString() : 'just now'}</div>
   `;
     row.appendChild(card);
+    wireMessageAttachments(card);
     els.chatWindow.appendChild(row);
     els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
 }

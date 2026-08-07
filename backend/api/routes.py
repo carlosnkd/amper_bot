@@ -26,6 +26,126 @@ logger = logging.getLogger(__name__)
 # repo root -- routes.py is backend/api/routes.py, so two parents up.
 README_PATH = Path(__file__).resolve().parents[2] / "README.md"
 
+# Cap on how much of an uploaded file's text we fold into the prompt -- keeps a huge
+# attachment from blowing the LLM's context window/cost on a single turn. Chars, not
+# bytes, since this is applied post-decode.
+MAX_ATTACHMENT_CHARS = 20_000
+
+# Tried in order until one succeeds. utf-8-sig first so a BOM (common from Windows editors
+# that "Save As UTF-8") doesn't leak a literal ﻿ into the prompt. cp1252 last as the
+# permissive catch-all: it's Windows' historical default for plain-text saves ("ANSI" in
+# Notepad et al.) and, unlike utf-8, never raises -- any byte string decodes under it -- so
+# it MUST stay last, after real binary formats have already been ruled out by magic bytes
+# below, or PDFs/images would "successfully" decode into mojibake instead of being skipped.
+_TEXT_ENCODINGS = ("utf-8-sig", "utf-8", "cp1252")
+
+# Magic-byte prefixes for formats we can't extract text from yet (no PDF/OOXML/image
+# parser here) -- checked before the cp1252 catch-all so these get a clear "can't read
+# this yet" note instead of cp1252 happily decoding their binary bytes into garbage text.
+_BINARY_SIGNATURES = {
+    b"%PDF": "PDF",
+    b"PK\x03\x04": "zip-based (docx/xlsx/pptx/zip)",
+    b"\x89PNG": "PNG image",
+    b"\xff\xd8\xff": "JPEG image",
+    b"GIF8": "GIF image",
+}
+
+
+def _sniff_binary_kind(raw: bytes) -> Optional[str]:
+    for signature, kind in _BINARY_SIGNATURES.items():
+        if raw.startswith(signature):
+            return kind
+    return None
+
+
+async def _extract_attachment(file: UploadFile) -> dict:
+    """
+    Reads an uploaded file ONCE and returns a single structured record describing it:
+    {"name", "readable", "text", "truncated", "kind"}. This is the one source of truth
+    fed to three different consumers, so the file is never re-decoded (and can't drift
+    between them):
+      1. _attachment_prompt_block() -- folds it into the query text the Planner/Intent
+         classifier sees (see _apply_attachment(), used by /run and /run/stream).
+      2. record_message()'s `attachments` -- persisted as-is alongside the chat message
+         (see backend/services/chat.py), so GET /get_history can replay it back out.
+      3. The frontend's file-pane viewer -- reads that persisted record (via #2) to show
+         the attachment's content again on a later page load/conversation reopen, exactly
+         like it renders the Coder's own generated files.
+
+    Tries utf-8-sig/utf-8/cp1252 in turn (see _TEXT_ENCODINGS) rather than requiring
+    strict UTF-8 -- plenty of real-world text files (e.g. a .py saved by a Windows editor
+    with a smart quote or em-dash in it) are valid text but not valid UTF-8, and were
+    getting dropped entirely before this. Recognized binary formats (PDF, images,
+    zip-based Office docs) are named explicitly (`kind`) rather than decoded -- there's no
+    OCR/extraction step here. `readable` is False whenever `text` is None, whether because
+    the format was recognized-but-binary (`kind` set) or just plain undecodable
+    (`kind` None) -- either way there's nothing to show, only the two differ in *why*.
+    Truncates very large text files to MAX_ATTACHMENT_CHARS so one attachment can't
+    dominate the prompt (or bloat the persisted row) on its own.
+    """
+    raw = await file.read()
+    name = file.filename or "attachment"
+
+    binary_kind = _sniff_binary_kind(raw)
+    if binary_kind:
+        logger.info("Attachment %r is a %s -- no text extraction available yet", name, binary_kind)
+        return {"name": name, "readable": False, "text": None, "truncated": False, "kind": binary_kind}
+
+    text = None
+    for encoding in _TEXT_ENCODINGS:
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+
+    if text is None:
+        logger.warning("Attachment %r couldn't be decoded as text -- treating as unreadable", name)
+        return {"name": name, "readable": False, "text": None, "truncated": False, "kind": None}
+
+    truncated = len(text) > MAX_ATTACHMENT_CHARS
+    if truncated:
+        text = text[:MAX_ATTACHMENT_CHARS]
+
+    return {"name": name, "readable": True, "text": text, "truncated": truncated, "kind": None}
+
+
+def _attachment_prompt_block(info: dict) -> str:
+    """Renders an _extract_attachment() record as the labeled block folded into the
+    query text -- ALWAYS returns something (never blank) so the model knows an
+    attachment exists even when its content couldn't be read; silently saying nothing
+    was indistinguishable from no file being attached at all, which is what produced
+    replies like "I don't see a file attached"."""
+    name = info["name"]
+    if info["readable"]:
+        note = "\n\n[...truncated]" if info["truncated"] else ""
+        body = f"{info['text']}{note}"
+    elif info["kind"]:
+        body = (
+            f"[This is a {info['kind']} file. Its content can't be read yet -- text "
+            f"extraction for this format isn't supported. Tell the user their file was "
+            f"received but you can't see inside it.]"
+        )
+    else:
+        body = (
+            f"[This file's content can't be read (not a recognized text or supported "
+            f"document format). Tell the user their file was received but you can't see "
+            f"inside it.]"
+        )
+    return f"--- Attached file: {name} ---\n{body}\n--- End of {name} ---"
+
+
+async def _apply_attachment(query: str, file: Optional[UploadFile]) -> tuple[str, Optional[dict]]:
+    """Folds an uploaded file's content (if any -- as real text, or a clear "unreadable"
+    note when it isn't) ahead of the query, and returns the file's _extract_attachment()
+    record alongside it for the caller to persist via record_message(attachments=...).
+    Returns (query, None) unchanged when there's no file, so callers can pass the second
+    value straight through without an extra None-check."""
+    if not file:
+        return query, None
+    info = await _extract_attachment(file)
+    return f"{_attachment_prompt_block(info)}\n\n{query}", info
+
 
 def _sse(payload: dict) -> str:
     return f"data: {json.dumps(payload)}\n\n"
@@ -112,10 +232,9 @@ async def run_agent(
     """
     if not conversation_id:
         conversation_id = str(uuid.uuid4())
-    if file:
-        pass
+    effective_query, attachment = await _apply_attachment(query, file)
 
-    result, summary = await start_plan(user_id, query, conversation_id)
+    result, summary = await start_plan(user_id, effective_query, conversation_id)
 
     # chat_reply is set when the intent gate in start_plan() classified this message
     # as chit-chat/a snippet rather than a ticket -- the Planner never ran, so there's
@@ -123,7 +242,10 @@ async def run_agent(
     chat_reply = result.get("chat_reply")
     assistant_message = _plan_turn_message(result, result.get("ticket") or query)
 
-    record_message(user_id, conversation_id, "user", query)
+    record_message(
+        user_id, conversation_id, "user", query,
+        attachments=[attachment] if attachment else None,
+    )
     record_message(user_id, conversation_id, "assistant", assistant_message)
     end_conversation(user_id, conversation_id, db, summary)
 
@@ -156,8 +278,7 @@ async def run_agent_stream(
     """
     if not conversation_id:
         conversation_id = str(uuid.uuid4())
-    if file:
-        pass
+    effective_query, attachment = await _apply_attachment(query, file)
 
     async def event_stream():
         phase_queue: "asyncio.Queue[dict]" = asyncio.Queue()
@@ -167,7 +288,7 @@ async def run_agent_stream(
 
         async def run_and_finish():
             try:
-                result, summary = await start_plan(user_id, query, conversation_id, on_phase=on_phase)
+                result, summary = await start_plan(user_id, effective_query, conversation_id, on_phase=on_phase)
                 await phase_queue.put({"type": "done", "result": result, "summary": summary})
             except Exception as exc:  # noqa: BLE001 -- reported to the client as a stream event
                 logger.exception("Error in /run/stream")
@@ -185,7 +306,10 @@ async def run_agent_stream(
                     chat_reply = result.get("chat_reply")
                     assistant_message = _plan_turn_message(result, result.get("ticket") or query)
 
-                    record_message(user_id, conversation_id, "user", query)
+                    record_message(
+                        user_id, conversation_id, "user", query,
+                        attachments=[attachment] if attachment else None,
+                    )
                     record_message(user_id, conversation_id, "assistant", assistant_message)
                     end_conversation(user_id, conversation_id, db, summary)
 
