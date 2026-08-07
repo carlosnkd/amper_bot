@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Agentic Research Studio</title>
-        <link rel="stylesheet" href="/static/css/app.css" />
+        <link rel="stylesheet" href="/static/css/app.css?v=2" />
     </head>
     <body>
         <div class="app-shell">
@@ -263,7 +263,13 @@
                                     </svg>
                                 </button>
                             </div>
-                            <div id="filePaneFilename" class="file-pane-filename"></div>
+                            <div class="file-pane-filename-row">
+                                <div id="filePaneFilename" class="file-pane-filename"></div>
+                                <div class="code-block-actions file-pane-actions">
+                                    <button type="button" id="filePaneCopy" class="code-block-btn code-block-copy" aria-label="Copy file content">Copy</button>
+                                    <button type="button" id="filePaneDownload" class="code-block-btn" aria-label="Download file">Download</button>
+                                </div>
+                            </div>
                             <pre class="file-pane-body"><code id="filePaneCode"></code></pre>
                         </aside>
 
@@ -391,6 +397,10 @@
              tabs (static/js/app.js's loadMarkdownDoc()) -- no build step, so it's loaded
              straight from a CDN rather than bundled. -->
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-        <script src="/static/js/app.js"></script>
+        <!-- ?v= is a manual cache-buster -- StaticFiles serves this with no strong
+             cache-control, so browsers fall back to heuristic caching and can keep
+             running an old app.js after a deploy even with the HTML reloaded fresh.
+             Bump this number whenever app.js/app.css change. -->
+        <script src="/static/js/app.js?v=2"></script>
     </body>
 </html>

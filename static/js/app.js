@@ -68,6 +68,8 @@ function cacheElements() {
     els.filePaneFilename = document.getElementById('filePaneFilename');
     els.filePaneCode = document.getElementById('filePaneCode');
     els.filePaneClose = document.getElementById('filePaneClose');
+    els.filePaneCopy = document.getElementById('filePaneCopy');
+    els.filePaneDownload = document.getElementById('filePaneDownload');
     els.traceToggle = document.getElementById('traceToggle');
     els.tracePane = document.getElementById('tracePane');
     els.tracePaneClose = document.getElementById('tracePaneClose');
@@ -107,6 +109,8 @@ function bindEvents() {
         }
     });
     els.filePaneClose.addEventListener('click', closeFilePane);
+    els.filePaneCopy.addEventListener('click', copyActiveFile);
+    els.filePaneDownload.addEventListener('click', downloadActiveFile);
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && els.filePane.classList.contains('open')) {
             closeFilePane();
@@ -481,6 +485,8 @@ async function selectConversation(conversationId) {
                 readOnly: true,
                 timestamp: message.timestamp,
             });
+        } else if (message.role === 'assistant' && message.files && message.files.length) {
+            appendBuildMessage(content, message.timestamp, message.files, conversationId);
         } else {
             const attachments = registerHistoryAttachments(conversationId, index, message.attachments);
             appendMessage(message.role, content, message.timestamp, attachments);
@@ -759,7 +765,7 @@ async function approvePlan(card) {
     lockPlanCard(card);
     state.isGenerating = true;
 
-    const live = createLiveBuildMessage();
+    const live = createLiveBuildMessage(conversationId);
 
     const formData = new FormData();
     formData.append('user_id', USER_ID);
@@ -1004,9 +1010,62 @@ function closeFilePane() {
     renderFileRowActiveStates();
 }
 
+/** Closes just one tab -- unlike closeFilePane() (the pane's own "x", which closes
+ * everything), this leaves the rest of openFileIds untouched. Falls back to
+ * closeFilePane() when the closed tab was the last one open, since an empty pane isn't
+ * a meaningful state to render. If the closed tab was the active one, activates
+ * whichever tab now sits in the same slot -- the next tab over, or the new last tab if
+ * it was the rightmost. */
+function closeFileTab(fileId) {
+    const index = openFileIds.indexOf(fileId);
+    if (index === -1) return;
+    openFileIds.splice(index, 1);
+
+    if (!openFileIds.length) {
+        closeFilePane();
+        return;
+    }
+
+    if (activeFileId === fileId) {
+        activeFileId = openFileIds[Math.min(index, openFileIds.length - 1)];
+    }
+    renderFilePane();
+}
+
 function switchFileTab(fileId) {
     activeFileId = fileId;
     renderFilePane();
+}
+
+async function copyActiveFile() {
+    const file = fileStore.get(activeFileId);
+    if (!file) return;
+    try {
+        await navigator.clipboard.writeText(file.content);
+        const original = els.filePaneCopy.textContent;
+        els.filePaneCopy.textContent = 'Copied!';
+        els.filePaneCopy.classList.add('copied');
+        setTimeout(() => {
+            els.filePaneCopy.textContent = original;
+            els.filePaneCopy.classList.remove('copied');
+        }, 1500);
+    } catch (error) {
+        showToast('Could not copy to clipboard', 'error');
+    }
+}
+
+function downloadActiveFile() {
+    const file = fileStore.get(activeFileId);
+    if (!file) return;
+    const blob = new Blob([file.content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.path.split('/').pop() || 'file.txt';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
 }
 
 /** Re-renders the pane's tabs + content from fileStore/openFileIds/activeFileId -- the
@@ -1023,12 +1082,29 @@ function renderFilePane() {
         openFileIds.forEach((id) => {
             const tabFile = fileStore.get(id);
             if (!tabFile) return;
-            const tab = document.createElement('button');
-            tab.type = 'button';
+
+            const tab = document.createElement('div');
             tab.className = `file-pane-tab ${id === activeFileId ? 'active' : ''}`;
-            tab.textContent = tabFile.path.split('/').pop();
             tab.title = tabFile.path;
-            tab.addEventListener('click', () => switchFileTab(id));
+
+            const selectBtn = document.createElement('button');
+            selectBtn.type = 'button';
+            selectBtn.className = 'file-pane-tab-select';
+            selectBtn.textContent = tabFile.path.split('/').pop();
+            selectBtn.addEventListener('click', () => switchFileTab(id));
+
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'file-pane-tab-close';
+            closeBtn.innerHTML = ICONS.close;
+            closeBtn.setAttribute('aria-label', `Close ${tabFile.path}`);
+            closeBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                closeFileTab(id);
+            });
+
+            tab.appendChild(selectBtn);
+            tab.appendChild(closeBtn);
             els.filePaneTabs.appendChild(tab);
         });
     }
@@ -1045,6 +1121,70 @@ function renderFileRowActiveStates() {
     document.querySelectorAll('.build-file-row').forEach((row) => {
         row.classList.toggle('active', row.dataset.fileId === activeFileId);
     });
+}
+
+/**
+ * Renders one clickable row per file into `container` -- the single code path for
+ * "files a build touched, shown as compact chips", shared by the live build message
+ * (createLiveBuildMessage()'s upsertFile(), called again on every new "file" SSE event)
+ * and history replay (selectConversation(), called once off a message's persisted
+ * `files` list). Always re-renders `container` from scratch off `files`; callers own
+ * the array itself.
+ *
+ * Each entry is either:
+ *   - { path, fileId, lines } -- content already sitting in fileStore under fileId (the
+ *     live case), so a click just opens the pane straight from there, or
+ *   - { path } alone -- a replayed file whose content hasn't been fetched yet; a click
+ *     lazily loads it from GET /workspace_file (see openWorkspaceFile()) instead.
+ */
+function renderFileChips(container, files, { conversationId } = {}) {
+    container.innerHTML = '';
+    files.forEach(({ path, fileId, lines }) => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'build-file-row';
+        row.dataset.fileId = fileId || '';
+        row.innerHTML = `
+      <code class="build-file-row-path">${escapeHtml(path)}</code>
+      ${typeof lines === 'number' ? `<span class="build-file-row-meta">${lines} line${lines === 1 ? '' : 's'}</span>` : ''}
+    `;
+        row.addEventListener('click', () => {
+            if (fileId && fileStore.has(fileId)) {
+                openFilePane(fileId);
+            } else {
+                openWorkspaceFile(conversationId, path);
+            }
+        });
+        container.appendChild(row);
+    });
+}
+
+/**
+ * Lazily fetches a replayed build file's current content from the backend the first
+ * time its chip is clicked (GET /workspace_file, backend/api/routes.py), caches it into
+ * fileStore under a stable id keyed by conversation+path, then opens it in the same
+ * file pane a live build's chip would. Safe to call repeatedly for the same file -- a
+ * second click just finds it already in fileStore and opens straight from there, no
+ * second request.
+ */
+async function openWorkspaceFile(conversationId, path) {
+    const fileId = `ws-${conversationId}-${path}`;
+    if (fileStore.has(fileId)) {
+        openFilePane(fileId);
+        return;
+    }
+    try {
+        const response = await fetch(
+            `${API_BASE}/workspace_file?conversation_id=${encodeURIComponent(conversationId)}&path=${encodeURIComponent(path)}`,
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `Request failed with ${response.status}`);
+        fileStore.set(fileId, { id: fileId, path, content: data.content, language: inferLanguage(path) });
+        openFilePane(fileId);
+    } catch (error) {
+        console.error(error);
+        showToast('Unable to load this file', 'error');
+    }
 }
 
 /**
@@ -1221,7 +1361,7 @@ function formatTraceTime(timestamp) {
  * the file pane (see openFilePane()/renderFilePane()), so a build with dozens of files
  * stays scannable instead of turning the chat into an unusable code dump.
  */
-function createLiveBuildMessage() {
+function createLiveBuildMessage(conversationId) {
     const row = document.createElement('div');
     row.className = 'message-row';
     const card = document.createElement('div');
@@ -1245,7 +1385,10 @@ function createLiveBuildMessage() {
     const filesEl = card.querySelector('.build-files');
     const summaryEl = card.querySelector('.build-summary');
     const metaEl = card.querySelector('.message-meta');
-    const fileRows = new Map(); // path -> row element, for updating an already-written file
+    // This build's files so far, in first-written order -- re-rendered via
+    // renderFileChips() on every new "file" event rather than patched incrementally, so
+    // live and replay share the exact same rendering path.
+    const filesSoFar = [];
     // Namespaces this build's file ids so the same path from a different build (e.g. an
     // earlier turn, or a different conversation) never collides with this one in fileStore.
     const buildId = `build-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1272,21 +1415,14 @@ function createLiveBuildMessage() {
             const fileId = `${buildId}:${path}`;
             fileStore.set(fileId, { id: fileId, path, content, language: inferLanguage(path) });
 
-            let fileRow = fileRows.get(path);
-            if (!fileRow) {
-                fileRow = document.createElement('button');
-                fileRow.type = 'button';
-                fileRow.className = 'build-file-row';
-                fileRow.dataset.fileId = fileId;
-                fileRow.addEventListener('click', () => openFilePane(fileId));
-                filesEl.appendChild(fileRow);
-                fileRows.set(path, fileRow);
-            }
             const lines = countLines(content);
-            fileRow.innerHTML = `
-        <code class="build-file-row-path">${escapeHtml(path)}</code>
-        <span class="build-file-row-meta">${lines} line${lines === 1 ? '' : 's'}</span>
-      `;
+            const existing = filesSoFar.find((f) => f.path === path);
+            if (existing) {
+                existing.lines = lines;
+            } else {
+                filesSoFar.push({ path, fileId, lines });
+            }
+            renderFileChips(filesEl, filesSoFar, { conversationId });
 
             // A retry can rewrite a file that's already open in the pane -- keep it live
             // instead of leaving a stale view up.
@@ -1299,7 +1435,11 @@ function createLiveBuildMessage() {
             card.classList.remove('build-live');
             statusRow.classList.add('hidden');
             summaryEl.classList.remove('hidden');
-            summaryEl.innerHTML = formatMessage(event.result || event.error || 'No result');
+            const summaryText = event.result || event.error || 'No result';
+            // event.error's text is a friendly failure message, never a fenced block --
+            // only the success path (event.result, the Coder's own summary) needs
+            // stripping, but running both through it is harmless either way.
+            summaryEl.innerHTML = formatMessage(stripCodeFences(summaryText));
             if (event.approved === false) card.classList.add('build-not-approved');
             metaEl.textContent = new Date().toLocaleString();
             scrollDown();
@@ -1313,6 +1453,37 @@ function createLiveBuildMessage() {
             scrollDown();
         },
     };
+}
+
+/**
+ * Replay counterpart to createLiveBuildMessage() -- renders a past build turn's file
+ * chips + summary in one shot from a persisted message, instead of filling in live over
+ * an SSE stream. Used by selectConversation() whenever a saved assistant message
+ * carries a `files` list (see backend/api/routes.py's /build/stream, which is what
+ * persists it). Chips start as `{ path }` only -- content isn't stored in the DB, so
+ * each one's content is fetched from GET /workspace_file lazily, on click (see
+ * renderFileChips()/openWorkspaceFile()), exactly like a live build's chips are already
+ * clickable from content it has in hand.
+ */
+function appendBuildMessage(content, timestamp, files, conversationId) {
+    clearEmptyState();
+    const row = document.createElement('div');
+    row.className = 'message-row';
+    const card = document.createElement('div');
+    card.className = 'message-card';
+    card.innerHTML = `
+    <div class="message-card-head">${ICONS.bot}<h4>Agent</h4></div>
+    <div class="build-files"></div>
+    <div class="build-summary">${formatMessage(stripCodeFences(typeof content === 'string' ? content : JSON.stringify(content)))}</div>
+    <div class="message-meta">${timestamp ? new Date(timestamp).toLocaleString() : ''}</div>
+  `;
+    row.appendChild(card);
+    els.chatWindow.appendChild(row);
+
+    const filesEl = card.querySelector('.build-files');
+    renderFileChips(filesEl, files.map((path) => ({ path })), { conversationId });
+
+    els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
 }
 
 /**
@@ -1446,6 +1617,23 @@ const FILE_EXTENSION_BY_LANGUAGE = {
     ruby: 'rb',
     php: 'php',
 };
+
+/**
+ * Strips fenced code blocks (```…```) out of a build's summary text before it's
+ * rendered in the chat bubble. The Coder's task asks for a short plain-text summary
+ * (see agents/ticket_pipeline/tasks.py's build_code_task expected_output), but the LLM
+ * doesn't always follow that -- it sometimes still wraps a one-line-per-file rundown (or
+ * worse, real content) in a fenced block, which formatMessage() would otherwise render
+ * as a full code block with its own Copy/Download toolbar, duplicating exactly what the
+ * .build-files chips + file pane already show, just less usably. Only ever applied to
+ * build-result text (createLiveBuildMessage().finish() / appendBuildMessage()) -- never
+ * to chat/snippet replies, which have no chips backing them and are expected to show
+ * real code inline.
+ */
+function stripCodeFences(text) {
+    const stripped = text.replace(/```[\s\S]*?```/g, '').trim();
+    return stripped || 'Done -- see the files above.';
+}
 
 function suggestSnippetFilename(language) {
     const ext = FILE_EXTENSION_BY_LANGUAGE[(language || '').toLowerCase()] || 'txt';

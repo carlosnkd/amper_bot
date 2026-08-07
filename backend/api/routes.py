@@ -19,6 +19,8 @@ from backend.services.chat import (
     get_trace,
 )
 from agents.ticket_pipeline.main import run_ticket_pipeline
+from agents.ticket_pipeline.flow import WORKSPACES_ROOT
+from agents.ticket_pipeline.tools import resolve_in_workspace
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -439,14 +441,29 @@ async def build_stream(
             progress_queue,
         )
 
+        # Paths this build actually wrote to, in first-written order -- built up from the
+        # same "file" events forwarded to the client below, so what gets persisted always
+        # matches what the live file chips showed. Deduped so a retry rewriting the same
+        # file doesn't persist it twice; content itself is never kept here, only the path
+        # -- GET /workspace_file reads the current content back off disk on demand.
+        written_paths: list[str] = []
+        seen_paths: set[str] = set()
+
         while True:
             event = await loop.run_in_executor(None, progress_queue.get)
+
+            if event["type"] == "file" and event.get("path") not in seen_paths:
+                seen_paths.add(event["path"])
+                written_paths.append(event["path"])
 
             if event["type"] == "done":
                 result = event["result"]
                 summary = event["summary"]
                 response_text = result.get("code_summary") or result.get("error") or "No result"
-                record_message(user_id, conversation_id, "assistant", response_text)
+                record_message(
+                    user_id, conversation_id, "assistant", response_text,
+                    files=written_paths or None,
+                )
                 end_conversation(user_id, conversation_id, db, summary)
                 yield _sse({
                     "type": "result",
@@ -543,6 +560,45 @@ def get_retro():
             content={"error": f"WHAT_I_WOULD_DO_DIFFERENTLY.md not found at {RETRO_PATH}"},
         )
     return {"content": content}
+
+
+@router.get('/workspace_file')
+def get_workspace_file(conversation_id: str, path: str):
+    """
+    Serves one file's CURRENT content from a conversation's on-disk workspace
+    (workspaces/<conversation_id>/, see agents/ticket_pipeline/flow.py's
+    WORKSPACES_ROOT). The persisted message row for a build turn only carries the
+    file's path (see record_message(..., files=...) in /build/stream above), not its
+    content, so this is what the frontend's file pane fetches on demand the first time a
+    replayed build-file chip is clicked (see static/js/app.js's openWorkspaceFile()) --
+    mirrors how a LIVE build's chips already have their content in hand from the "file"
+    SSE event, just fetched lazily instead of pushed eagerly.
+
+    Reuses the same containment guard the Coder/Reviewer's own file tools are built on
+    (agents/ticket_pipeline/tools.py's resolve_in_workspace()), so a path like
+    '../../backend/db.py' is rejected here exactly as it would be inside a crew run.
+    """
+    root = WORKSPACES_ROOT / conversation_id
+    try:
+        target = resolve_in_workspace(root, path)
+    except ValueError as exc:
+        return JSONResponse(status_code=400, content={"error": str(exc)})
+
+    if not target.is_file():
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"'{path}' was not found in this conversation's workspace."},
+        )
+
+    try:
+        content = target.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return JSONResponse(
+            status_code=415,
+            content={"error": "This file isn't readable as text."},
+        )
+
+    return {"path": path, "content": content}
 
 
 @router.get('/trace')

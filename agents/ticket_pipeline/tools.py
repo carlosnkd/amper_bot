@@ -26,6 +26,25 @@ def set_active_workspace(path: Path) -> None:
     _active_workspace.set(path)
 
 
+def resolve_in_workspace(root: Path, relative_path: str) -> Path:
+    """
+    Resolves `relative_path` against `root`, raising ValueError if it would escape root
+    (e.g. via '..' segments or an absolute path). Split out of _resolve() so callers that
+    already have a concrete workspace root in hand -- not just the Coder/Reviewer's tools
+    running against the ContextVar-scoped "active" workspace -- get the same containment
+    guard for free. backend/api/routes.py's GET /workspace_file is the other caller: it
+    reads a past build's files back off disk outside of any active crew run, keyed
+    directly by conversation_id.
+    """
+    root = root.resolve()
+    target = (root / relative_path).resolve()
+    if target != root and root not in target.parents:
+        raise ValueError(
+            f"'{relative_path}' resolves outside the workspace and was rejected."
+        )
+    return target
+
+
 def _resolve(relative_path: str) -> Path:
     try:
         root = _active_workspace.get()
@@ -34,14 +53,7 @@ def _resolve(relative_path: str) -> Path:
             "No active workspace set -- call set_active_workspace() before running "
             "a crew that uses file tools."
         ) from exc
-
-    root = root.resolve()
-    target = (root / relative_path).resolve()
-    if target != root and root not in target.parents:
-        raise ValueError(
-            f"'{relative_path}' resolves outside the workspace and was rejected."
-        )
-    return target
+    return resolve_in_workspace(root, relative_path)
 
 
 @tool

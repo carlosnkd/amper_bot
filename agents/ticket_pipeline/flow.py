@@ -122,7 +122,15 @@ class _TicketSteps:
             verbose=True,
         )
         result = crew.kickoff(
-            inputs={"ticket": self.state.ticket, "history": history_text}
+            inputs={
+                "ticket": self.state.ticket,
+                "history": history_text,
+                # Only ever substituted if build_plan_task() actually put a
+                # {previous_plan}/{feedback} placeholder in the description (i.e. a
+                # revision turn) -- harmless to always pass, CrewAI ignores unused keys.
+                "previous_plan": json.dumps(self.state.plan) if self.state.plan else "(none)",
+                "feedback": self.state.plan_feedback or "",
+            }
         )
         self.state.plan = _parse_json_output(result.raw, "Planner")
         self._record(
@@ -138,7 +146,14 @@ class _TicketSteps:
             process=Process.sequential,
             verbose=True,
         )
-        result = crew.kickoff(inputs={"plan": json.dumps(self.state.plan)})
+        result = crew.kickoff(
+            inputs={
+                "plan": json.dumps(self.state.plan),
+                # Only substituted on a retry (feedback_block put {feedback} in the
+                # description) -- harmless to always pass otherwise.
+                "feedback": self.state.review_feedback or "",
+            }
+        )
         self.state.code_summary = result.raw
         # code_summary is the Coder's own plain-text account of what it changed -- reused
         # here as the trace's reasoning, just length-capped rather than duplicated in full

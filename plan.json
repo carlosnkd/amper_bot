@@ -1,43 +1,43 @@
 {
   "assumptions": [
-    "Redis is the rate-limit counter store (shared across API instances), with a process-local in-memory fallback for local dev and tests. A purely in-memory limiter would not survive multiple instances, so this choice changes the implementation materially.",
-    "Limits are keyed by authenticated principal (API key / user ID) when the request is authenticated, and by client IP (resolved from the trusted proxy header) for anonymous requests. This assumes the API sits behind a known reverse proxy whose forwarded-for header can be trusted.",
-    "The algorithm is a sliding-window counter implemented atomically in Redis (Lua script or INCR+EXPIRE), chosen over a token bucket because burst allowance is not requested and per-window semantics map directly to the X-RateLimit-* headers we expose.",
-    "Limits are applied globally to all API endpoints via middleware, with a config-driven override table for specific routes (e.g. tighter limits on auth/login endpoints, exemptions for health checks).",
-    "On a limiter backend outage the middleware fails open (allows the request) and logs an error, prioritizing availability over strict enforcement."
+    "The API is a FastAPI/Starlette ASGI app; the limiter is implemented as ASGI middleware plus an optional per-route dependency/decorator for overrides. If the codebase is Flask/Django, the same design maps to a WSGI middleware + view decorator.",
+    "Redis is the storage backend so limits are shared across processes and replicas, with an in-memory backend used as a fallback for local dev and tests. The backend is chosen behind a small interface so it can be swapped.",
+    "Algorithm is a fixed-window counter implemented atomically in Redis (INCR + EXPIRE via Lua). Cheaper and simpler than sliding-window/token-bucket, at the cost of allowing up to 2x burst at a window boundary.",
+    "Identity for a limited caller is the authenticated principal (API key / user id from the existing auth context) when present, falling back to client IP derived from X-Forwarded-For (trusting the last N proxy hops, configurable) for anonymous traffic.",
+    "If Redis is unreachable, the limiter fails open (requests are allowed) and logs an error, so a cache outage cannot take the whole API down."
   ],
   "tasks": [
     {
       "id": "T1",
-      "description": "Define the rate-limit configuration schema and load it from the existing app config/env: global default limit (requests per window) and window length, per-route overrides keyed by method+path pattern, an exempt-routes list, the identity strategy (authenticated principal vs IP), the trusted-proxy header name, backend selection (redis|memory), Redis connection URL, and an enabled/disabled kill switch. Include sane defaults (e.g. 100 req / 60s) so the system works with zero config, plus validation that rejects malformed limit definitions at startup."
+      "description": "Add rate-limit configuration: a settings block (env-var driven, e.g. RATELIMIT_ENABLED, RATELIMIT_BACKEND, RATELIMIT_REDIS_URL, RATELIMIT_DEFAULT='100/minute', RATELIMIT_TRUSTED_PROXY_HOPS) parsed into a typed config object, plus a parser for the 'N/period' limit string (second, minute, hour, day) that raises a clear error on malformed values. Include per-route override config as a mapping of route name/path -> limit string."
     },
     {
       "id": "T2",
-      "description": "Implement the limiter core behind a single interface (e.g. RateLimiter.check(key, limit, window) -> {allowed, limit, remaining, reset_at, retry_after}) with two backends: a Redis sliding-window counter executed as an atomic Lua script (or INCR + conditional EXPIRE) so concurrent requests across instances cannot over-admit, and an in-memory backend with the same semantics and periodic eviction of expired keys for dev/test. Redis errors must surface as a distinguishable failure result rather than an exception escaping into request handling."
+      "description": "Define the storage backend interface (e.g. abstract `RateLimitBackend` with an async `incr(key, window_seconds) -> (count, ttl_remaining)` and `reset(key)`), and implement the in-memory backend with proper expiry and a lock for thread/task safety. This is the backend used in tests and local dev."
     },
     {
       "id": "T3",
-      "description": "Implement the key-derivation logic: resolve the caller identity to a stable rate-limit key using the authenticated principal when present, otherwise the client IP parsed from the trusted-proxy header (falling back to the socket peer address), and namespace the key by route bucket so per-route overrides get independent counters. Handle multi-hop forwarded-for values by taking the correct client entry given the configured number of trusted proxies, and normalize IPv6 addresses."
+      "description": "Implement the Redis backend against the same interface using a Lua script for an atomic INCR + EXPIRE-if-new, returning the current count and remaining TTL in one round trip. Wrap Redis calls so connection/timeout errors raise a dedicated `BackendUnavailable` exception rather than leaking redis-py errors."
     },
     {
       "id": "T4",
-      "description": "Add the rate-limit middleware and wire it into the API's global middleware chain ahead of route handlers but after authentication (so the authenticated principal is available for keying). The middleware resolves the applicable limit for the matched route, calls the limiter, allows or rejects, sets X-RateLimit-Limit, X-RateLimit-Remaining and X-RateLimit-Reset on every response, and skips exempt routes and health/metrics endpoints entirely. When the backend fails, log an error and allow the request through (fail open) per the configured policy."
+      "description": "Implement the core limiter: caller-identity resolution (authenticated principal first, then client IP from X-Forwarded-For honoring the configured trusted-hop count, then remote address), key construction (`ratelimit:{scope}:{identity}:{window_start}`), the fixed-window check that returns allow/deny plus limit, remaining, and reset timestamp, and fail-open behavior with an error log when the backend raises `BackendUnavailable`."
     },
     {
       "id": "T5",
-      "description": "Implement the throttled response path: return HTTP 429 with a Retry-After header and a JSON error body matching the API's existing error envelope (error code such as rate_limit_exceeded, human-readable message, and reset timestamp). Make sure the 429 is produced consistently for all endpoints including those with custom error handlers, and that it is not swallowed or reformatted by the global exception handler."
+      "description": "Add the middleware and wire it into the app: apply the default limit to all API endpoints, skip health/metrics/docs paths, and on rejection return HTTP 429 with the standard JSON error body and `Retry-After` plus `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers. Set the same X-RateLimit-* headers on successful responses. Honor RATELIMIT_ENABLED as a global kill switch."
     },
     {
       "id": "T6",
-      "description": "Add observability: structured log lines on every throttle event (key, route, limit, current count) sampled or rate-limited to avoid log floods, counters/metrics for allowed vs throttled requests and limiter backend errors labelled by route, and an admin/debug endpoint or CLI command to inspect and reset the current counter for a given key to support operations."
+      "description": "Add a per-route override mechanism (decorator/dependency such as `@rate_limit('10/minute')`) that the middleware consults via route metadata, so expensive or auth-sensitive endpoints can tighten or exempt (`@rate_limit(None)`) the default. Apply a stricter limit to the login/token endpoint as a first consumer."
     },
     {
       "id": "T7",
-      "description": "Write tests: unit tests for the sliding-window arithmetic and key derivation (including forwarded-for parsing edge cases and window boundary/reset behavior with a mocked clock), integration tests against a real Redis instance covering concurrent requests not exceeding the limit and counters expiring correctly, and endpoint tests asserting 200s up to the limit, a 429 with correct headers and body past it, per-route override behavior, exempt routes never throttled, and fail-open behavior when the backend is unreachable."
+      "description": "Write tests: unit tests for the limit-string parser, both backends (counting, window rollover, expiry), and identity resolution including X-Forwarded-For spoofing with untrusted hops; integration tests hitting a real endpoint that assert the Nth request passes, N+1 returns 429 with correct headers, the counter resets after the window, limits are isolated per identity, per-route overrides win over the default, and a simulated Redis outage fails open."
     },
     {
       "id": "T8",
-      "description": "Document the feature: README/API-docs section describing the default limits, per-route overrides, the response headers and 429 contract for API consumers, and the operational runbook for tuning limits, disabling the limiter via the kill switch, and resetting a stuck key. Include the Redis dependency in local dev setup (docker-compose service) and deployment config."
+      "description": "Add operational glue and docs: structured log line on every 429 (identity, route, limit), a counter metric for allowed/throttled requests tagged by route, README/docs section covering configuration, the 429 contract and response headers for API consumers, and the fail-open behavior plus its security tradeoff."
     }
   ]
 }

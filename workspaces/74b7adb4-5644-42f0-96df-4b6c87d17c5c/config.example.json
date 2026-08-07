@@ -1,0 +1,20 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "read_timeout": "15s"
+  },
+  "database": {
+    "url": "postgres://localhost:5432/app?sslmode=disable",
+    "max_open_conns": 10
+  },
+  "log": {
+    "level": "info"
+  },
+
+  "rate_limit": {
+    "enabled": false,
+    "requests": 100,
+    "window": "1m"
+  }
+}

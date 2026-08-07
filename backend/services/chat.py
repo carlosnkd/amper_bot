@@ -39,8 +39,8 @@ def append_history(db: Session, username: str = "carlos"):
     )
     return result
 
-def record_message(user_id, conversation_id, role, content, attachments=None):
-    add_message(user_id, conversation_id, role, content, attachments=attachments)
+def record_message(user_id, conversation_id, role, content, attachments=None, files=None):
+    add_message(user_id, conversation_id, role, content, attachments=attachments, files=files)
 
 
 def end_conversation(user_id, conversation_id, db, summary):

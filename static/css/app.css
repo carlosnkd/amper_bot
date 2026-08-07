@@ -469,26 +469,57 @@ svg {
     overflow-x: auto;
     min-width: 0;
 }
+/* A tab is a wrapper (not a <button> itself) around two independently clickable
+   buttons -- select and close -- same reasoning as .conversation-item in the sidebar:
+   a <button> can't legally nest another <button>. */
 .file-pane-tab {
+    display: flex;
+    align-items: center;
+    gap: 2px;
     flex-shrink: 0;
-    padding: 6px 12px;
+    padding: 4px 4px 4px 12px;
     border-radius: var(--radius-sm);
     background: var(--surface-alt);
-    color: var(--muted);
-    font-size: 0.78rem;
-    font-family: 'Cascadia Code', Consolas, monospace;
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.file-pane-tab:hover {
-    color: var(--text);
+    max-width: 200px;
 }
 .file-pane-tab.active {
     background: var(--accent-soft);
+}
+.file-pane-tab-select {
+    flex: 1;
+    min-width: 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-family: 'Cascadia Code', Consolas, monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+.file-pane-tab:hover .file-pane-tab-select {
+    color: var(--text);
+}
+.file-pane-tab.active .file-pane-tab-select {
     color: var(--accent);
     font-weight: 600;
+}
+.file-pane-tab-close {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    color: var(--muted);
+}
+.file-pane-tab-close svg {
+    width: 11px;
+    height: 11px;
+}
+.file-pane-tab-close:hover {
+    background: var(--surface);
+    color: var(--text);
 }
 .file-pane-close {
     flex-shrink: 0;
@@ -508,14 +539,28 @@ svg {
     width: 15px;
     height: 15px;
 }
-.file-pane-filename {
-    padding: 10px 14px;
+.file-pane-filename-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 10px 10px 14px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.file-pane-filename {
+    min-width: 0;
+    flex: 1;
     font-family: 'Cascadia Code', Consolas, monospace;
     font-size: 0.8rem;
     color: var(--muted);
-    overflow-x: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+}
+/* .code-block-actions already gives these buttons their box/gap; this just keeps them
+   from shrinking away when the filename above is long. */
+.file-pane-actions {
     flex-shrink: 0;
 }
 .file-pane-body {

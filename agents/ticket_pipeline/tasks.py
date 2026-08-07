@@ -15,13 +15,23 @@ from agents.ticket_pipeline.agent import coder_agent, planner_agent, reviewer_ag
 
 
 def build_plan_task(feedback: str | None = None, previous_plan: dict | None = None) -> Task:
+    # {previous_plan}/{feedback} are left as literal CrewAI placeholders here (no f-string
+    # substitution) -- their actual values are filled in later via crew.kickoff(inputs=...)
+    # (see flow.py's _plan()), same mechanism {ticket}/{history} already use below. Baking
+    # a previous plan's JSON or free-text feedback in directly at this point would let any
+    # stray {word}-shaped substring inside it (e.g. a task mentioning an env var like
+    # ${RATE_LIMIT_ENABLED}) get misread by CrewAI's interpolator as ANOTHER required
+    # template variable nobody told it about -- crashing every "request changes" on a plan
+    # that happens to mention one, regardless of what the user's feedback actually says.
+    # See agents/common/errors.py's "template variable" branch for the resulting
+    # user-facing symptom.
     revision_block = (
-        f"""
+        """
             The user already saw this proposed plan and asked for changes instead of
             approving it. Revise it to address their feedback exactly -- keep whatever
             parts of the previous plan still apply, don't restart from scratch:
 
-            Previous plan (JSON): {json.dumps(previous_plan) if previous_plan else "(none)"}
+            Previous plan (JSON): {previous_plan}
 
             User's requested changes: {feedback}
         """
@@ -76,9 +86,14 @@ def build_plan_task(feedback: str | None = None, previous_plan: dict | None = No
 
 
 def build_code_task(feedback: str | None = None) -> Task:
+    # Same reasoning as build_plan_task()'s revision_block above -- {feedback} is a
+    # literal CrewAI placeholder filled via crew.kickoff(inputs=...) (see flow.py's
+    # _code()), not baked in here, so a stray {word}-shaped substring inside the
+    # Reviewer's free-text rejection reason can't be misread as a missing required
+    # template variable on a retry.
     feedback_block = (
-        f"The previous attempt at this plan was REJECTED by the Reviewer with this "
-        f"feedback. Fix exactly what it flags before doing anything else:\n{feedback}"
+        "The previous attempt at this plan was REJECTED by the Reviewer with this "
+        "feedback. Fix exactly what it flags before doing anything else:\n{feedback}"
         if feedback
         else "This is the first attempt at implementing this plan."
     )

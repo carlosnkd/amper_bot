@@ -3,7 +3,7 @@ from datetime import datetime
 
 conversation_cache = defaultdict(list)
 
-def add_message(user_id, conversation_id, role, content, attachments=None):
+def add_message(user_id, conversation_id, role, content, attachments=None, files=None):
     message = {
         "role": role,
         "content": content,
@@ -15,6 +15,12 @@ def add_message(user_id, conversation_id, role, content, attachments=None):
     # _extract_attachment() for what one entry looks like.
     if attachments:
         message["attachments"] = attachments
+    # Same reasoning as attachments above -- only a build turn that actually wrote files
+    # carries this key. `files` is a list of workspace-relative paths (see /build/stream
+    # in backend/api/routes.py); content isn't stored here, GET /workspace_file reads it
+    # back off disk on demand when a replayed file chip is clicked.
+    if files:
+        message["files"] = files
     conversation_cache[(user_id, conversation_id)].append(message)
 
 def get_conversation(user_id, conversation_id):
