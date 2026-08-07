@@ -1504,6 +1504,39 @@ svg {
     box-shadow: var(--shadow-hover);
     filter: brightness(1.05);
 }
+.modal-card.has-close {
+    position: relative;
+}
+.modal-close-x {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    color: var(--muted);
+}
+.modal-close-x:hover {
+    background: var(--surface-alt);
+    color: var(--text);
+}
+.modal-close-x svg {
+    width: 14px;
+    height: 14px;
+}
+/* .modal-confirm defaults to --danger (right for "Delete"); the welcome modal's "Got it"
+   isn't a destructive action, so it overrides back to the normal accent color. */
+.modal-ok {
+    background: var(--accent);
+}
+.modal-ok:hover {
+    background: var(--accent);
+    box-shadow: var(--shadow-hover);
+    filter: brightness(1.05);
+}
 
 @media (max-width: 980px) {
     .sidebar {

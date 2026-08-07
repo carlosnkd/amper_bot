@@ -41,6 +41,7 @@ function init() {
     renderEmptyState();
     loadHistory();
     initTabs();
+    showWelcomeModal();
 }
 
 function cacheElements() {
@@ -80,6 +81,10 @@ function cacheElements() {
     };
     els.aboutContent = document.getElementById('aboutContent');
     els.retroContent = document.getElementById('retroContent');
+
+    els.welcomeModal = document.getElementById('welcomeModal');
+    els.welcomeModalOk = document.getElementById('welcomeModalOk');
+    els.welcomeModalClose = document.getElementById('welcomeModalClose');
 }
 
 function bindEvents() {
@@ -119,6 +124,22 @@ function bindEvents() {
     // appendMessageTyped()'s reveal animation -- so there's no single stable moment to
     // attach a direct listener to any given button.
     els.chatWindow.addEventListener('click', handleCodeBlockClick);
+
+    // Both buttons just dismiss the welcome modal -- it's purely informational, there's
+    // no "don't show again" state to persist, so either one does exactly the same thing.
+    els.welcomeModalOk.addEventListener('click', closeWelcomeModal);
+    els.welcomeModalClose.addEventListener('click', closeWelcomeModal);
+}
+
+/** Shown once at the start of every session (called once from init()) -- a plain-text
+ * intro to what the assistant does and how to use it. No "don't show again" checkbox by
+ * design: it reappears on every fresh page load. */
+function showWelcomeModal() {
+    els.welcomeModal.classList.remove('hidden');
+}
+
+function closeWelcomeModal() {
+    els.welcomeModal.classList.add('hidden');
 }
 
 function handleCodeBlockClick(event) {
@@ -218,23 +239,19 @@ function applyTheme() {
  * it. About/Retro fetch README.md lazily (on first visit to either tab, not on page
  * load) and cache it in `readmeState`, so switching tabs back and forth never re-fetches.
  */
+// About and Retro are two independent files/endpoints (README.md and
+// WHAT_I_WOULD_DO_DIFFERENTLY.md) -- each gets its own cache slot rather than one shared
+// state, since there's no single document to split client-side anymore.
 const readmeState = {
     markdown: null, // cached raw markdown once fetched successfully
     error: null, // set instead of `markdown` if the fetch/parse failed
     fetchPromise: null, // in-flight fetch, so a rapid double-click can't fire it twice
 };
-
-// Candidate headings for the "What I'd Do Differently" tab, tried in order -- lets this
-// work out of the box against a README that uses a different (but equivalent) heading,
-// like this repo's own "## Known limitations", without hardcoding one exact title.
-const RETRO_HEADING_PATTERNS = [
-    /what i.?d do differently/i,
-    /what i would do differently/i,
-    /retrospective/i,
-    /lessons learned/i,
-    /trade-?offs?/i,
-    /known limitations/i,
-];
+const retroState = {
+    markdown: null,
+    error: null,
+    fetchPromise: null,
+};
 
 function initTabs() {
     els.tabBtns.forEach((btn) => {
@@ -254,64 +271,53 @@ function switchTab(tabName) {
         panel.classList.toggle('hidden', name !== tabName);
     });
 
-    if (tabName === 'about' || tabName === 'retro') {
-        loadReadme().then(renderReadmeTabs);
+    if (tabName === 'about') {
+        loadMarkdownDoc(readmeState, `${API_BASE}/api/readme`, els.aboutContent, 'README.md');
+    } else if (tabName === 'retro') {
+        loadMarkdownDoc(
+            retroState,
+            `${API_BASE}/api/retro`,
+            els.retroContent,
+            'WHAT_I_WOULD_DO_DIFFERENTLY.md',
+        );
     }
 }
 
-/** Fetches + caches README.md's raw markdown. Safe to call repeatedly -- only the first
- * call actually hits the network; later calls (including a second tab click while the
- * first fetch is still in flight) reuse the same promise/cached result. */
-function loadReadme() {
-    if (readmeState.markdown !== null || readmeState.error !== null) {
-        return Promise.resolve();
+/** Fetches + caches a markdown doc's raw content into `state` (one of readmeState /
+ * retroState), rendering it -- or its error, or a "Loading…" placeholder in the meantime
+ * -- into `targetEl` via marked.js. Safe to call repeatedly: a cache hit renders
+ * immediately with no request, and a second call while a fetch is already in flight is a
+ * no-op (targetEl is already showing "Loading…" from the first call). */
+function loadMarkdownDoc(state, url, targetEl, label) {
+    if (state.error !== null) {
+        targetEl.innerHTML = `<p class="readme-fallback">${escapeHtml(state.error)}</p>`;
+        return;
     }
-    if (readmeState.fetchPromise) {
-        return readmeState.fetchPromise;
+    if (state.markdown !== null) {
+        targetEl.innerHTML = renderMarkdown(state.markdown);
+        return;
     }
+    if (state.fetchPromise) return;
 
-    renderReadmeTabs('Loading…');
+    targetEl.textContent = 'Loading…';
 
-    readmeState.fetchPromise = fetch(`${API_BASE}/api/readme`)
+    state.fetchPromise = fetch(url)
         .then(async (response) => {
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
                 throw new Error(data.error || `Request failed with ${response.status}`);
             }
-            readmeState.markdown = data.content || '';
+            state.markdown = data.content || '';
+            targetEl.innerHTML = renderMarkdown(state.markdown);
         })
         .catch((error) => {
             console.error(error);
-            readmeState.error =
-                'Unable to load README.md right now -- ' + (error.message || 'the request failed') + '.';
+            state.error = `Unable to load ${label} right now -- ${error.message || 'the request failed'}.`;
+            targetEl.innerHTML = `<p class="readme-fallback">${escapeHtml(state.error)}</p>`;
         })
         .finally(() => {
-            readmeState.fetchPromise = null;
+            state.fetchPromise = null;
         });
-
-    return readmeState.fetchPromise;
-}
-
-/** Renders the cached README (or its error) into both the About and Retro tabs' content
- * divs. Called once loadReadme() settles, and also (with a literal string) to show a
- * "Loading…" placeholder immediately, before the fetch resolves. */
-function renderReadmeTabs(loadingLabel) {
-    if (typeof loadingLabel === 'string') {
-        els.aboutContent.textContent = loadingLabel;
-        els.retroContent.textContent = loadingLabel;
-        return;
-    }
-
-    if (readmeState.error) {
-        els.aboutContent.innerHTML = `<p class="readme-fallback">${escapeHtml(readmeState.error)}</p>`;
-        els.retroContent.innerHTML = `<p class="readme-fallback">${escapeHtml(readmeState.error)}</p>`;
-        return;
-    }
-
-    els.aboutContent.innerHTML = renderMarkdown(readmeState.markdown);
-
-    const retroSection = extractRetroSection(readmeState.markdown);
-    els.retroContent.innerHTML = renderMarkdown(retroSection || readmeState.markdown);
 }
 
 /** marked.js is loaded from a CDN (see index.html) -- fails soft to escaped plain text
@@ -321,40 +327,6 @@ function renderMarkdown(markdown) {
         return `<pre class="readme-fallback">${escapeHtml(markdown)}</pre>`;
     }
     return marked.parse(markdown);
-}
-
-/**
- * Pulls out the section starting at the first heading matching RETRO_HEADING_PATTERNS,
- * up to (but not including) the next heading of the same or shallower level. Returns
- * null if no matching heading is found -- callers fall back to the full README, which is
- * simpler and still useful rather than rendering nothing.
- */
-function extractRetroSection(markdown) {
-    if (!markdown) return null;
-    const lines = markdown.split('\n');
-
-    let startIndex = -1;
-    let startLevel = 0;
-    for (let i = 0; i < lines.length; i++) {
-        const match = lines[i].match(/^(#{1,6})\s+(.*)$/);
-        if (match && RETRO_HEADING_PATTERNS.some((pattern) => pattern.test(match[2]))) {
-            startIndex = i;
-            startLevel = match[1].length;
-            break;
-        }
-    }
-    if (startIndex === -1) return null;
-
-    let endIndex = lines.length;
-    for (let i = startIndex + 1; i < lines.length; i++) {
-        const match = lines[i].match(/^(#{1,6})\s+/);
-        if (match && match[1].length <= startLevel) {
-            endIndex = i;
-            break;
-        }
-    }
-
-    return lines.slice(startIndex, endIndex).join('\n').trim();
 }
 
 function toggleTheme() {

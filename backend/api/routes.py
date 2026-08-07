@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 # repo root -- routes.py is backend/api/routes.py, so two parents up.
 README_PATH = Path(__file__).resolve().parents[2] / "README.md"
+RETRO_PATH = Path(__file__).resolve().parents[2] / "WHAT_I_WOULD_DO_DIFFERENTLY.md"
 
 # Cap on how much of an uploaded file's text we fold into the prompt -- keeps a huge
 # attachment from blowing the LLM's context window/cost on a single turn. Chars, not
@@ -509,9 +510,9 @@ def delete_conversation_endpoint(user_id: str, conversation_id: str, db: Session
 @router.get('/api/readme')
 def get_readme():
     """
-    Raw README.md content for the frontend's "About" / "What I'd Do Differently" tabs
-    (static/js/app.js's loadReadme()), which render it client-side via marked.js -- this
-    endpoint deliberately returns markdown, not HTML, so there's no server-side rendering
+    Raw README.md content for the frontend's "About" tab (static/js/app.js's
+    loadMarkdownDoc()), which renders it client-side via marked.js -- this endpoint
+    deliberately returns markdown, not HTML, so there's no server-side rendering
     dependency. Reads from disk on every call rather than caching in memory: README.md
     changes rarely and this is a low-traffic, dev-facing endpoint, so the simplicity of
     always reading the current file outweighs any benefit from caching it.
@@ -522,6 +523,24 @@ def get_readme():
         return JSONResponse(
             status_code=404,
             content={"error": f"README.md not found at {README_PATH}"},
+        )
+    return {"content": content}
+
+
+@router.get('/api/retro')
+def get_retro():
+    """
+    Raw WHAT_I_WOULD_DO_DIFFERENTLY.md content for the frontend's "What I'd Do
+    Differently" tab. Same pattern as get_readme() above -- a separate file, not a
+    section carved out of README.md, so it gets its own tiny endpoint rather than the
+    frontend guessing at a heading to extract.
+    """
+    try:
+        content = RETRO_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"WHAT_I_WOULD_DO_DIFFERENTLY.md not found at {RETRO_PATH}"},
         )
     return {"content": content}
 

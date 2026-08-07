@@ -1,0 +1,126 @@
+<svg viewBox="0 0 1180 970" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Amper Bot architecture: a message passes through the intent gate, then either gets a direct reply or goes through the Planner, an approval loop, and the Coder/Reviewer retry loop before being persisted.">
+  <title>Amper Bot — message routing &amp; ticket pipeline</title>
+
+  <!-- Self-contained light card background so the diagram stays legible regardless of
+       the surrounding page's light/dark theme (GitHub and the app's own About tab). -->
+  <rect x="0" y="0" width="1180" height="970" rx="18" fill="#f7f8fa"/>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4b5563"/>
+    </marker>
+  </defs>
+
+  <text x="590" y="34" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#1f2430">Amper Bot — message routing &amp; ticket pipeline</text>
+  <text x="590" y="58" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-style="italic" fill="#6b7280">Every message passes through the intent gate before anything is planned or built.</text>
+
+  <!-- ===== Connectors (drawn first, so nodes sit on top of line ends) ===== -->
+  <g stroke="#4b5563" stroke-width="1.8" fill="none">
+    <!-- A -> B -->
+    <path d="M560,139 L560,176" marker-end="url(#arrow)"/>
+    <!-- B branch stem -->
+    <path d="M560,234 L560,260" />
+    <path d="M560,260 L230,260 L230,297" marker-end="url(#arrow)"/>
+    <path d="M560,260 L740,260 L740,297" marker-end="url(#arrow)"/>
+    <!-- D -> F -->
+    <path d="M740,363 L740,403" marker-end="url(#arrow)"/>
+    <!-- F <-> G (replan loop) -->
+    <path d="M910,420 L960,420" marker-end="url(#arrow)"/>
+    <path d="M960,460 L910,460" marker-end="url(#arrow)"/>
+    <!-- F -> H -->
+    <path d="M740,477 L740,519" marker-end="url(#arrow)"/>
+    <!-- H -> I -->
+    <path d="M740,571 L740,601" marker-end="url(#arrow)"/>
+    <!-- I -> J -->
+    <path d="M740,669 L740,701" marker-end="url(#arrow)"/>
+    <!-- J -> I retry loop -->
+    <path d="M910,715 C1015,715 1015,615 900,615" marker-end="url(#arrow)"/>
+    <!-- J -> E -->
+    <path d="M740,769 L740,851" marker-end="url(#arrow)"/>
+    <!-- C -> E -->
+    <path d="M230,363 L230,820 L310,820 L310,851" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- Branch / loop labels -->
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" font-style="italic" fill="#6b7280">
+    <text x="300" y="252" text-anchor="middle">CHAT / SNIPPET</text>
+    <text x="690" y="252" text-anchor="middle">TICKET</text>
+    <text x="1060" y="397" text-anchor="middle">Request changes</text>
+    <text x="1060" y="497" text-anchor="middle">Planner amends the plan</text>
+    <text x="800" y="502" text-anchor="start">Approve &amp; Build</text>
+    <text x="1015" y="660" text-anchor="middle">rejected —</text>
+    <text x="1015" y="675" text-anchor="middle">retries left</text>
+    <text x="800" y="800" text-anchor="start">approved, or retries</text>
+    <text x="800" y="815" text-anchor="start">exhausted</text>
+  </g>
+
+  <!-- ===== Nodes ===== -->
+  <!-- A -->
+  <g>
+    <rect x="330" y="81" width="460" height="58" rx="10" fill="#ffffff" stroke="#c7cbd6" stroke-width="1.5"/>
+    <text x="560" y="105" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#1f2430">User sends a message</text>
+    <text x="560" y="123" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" fill="#5b6270">chat UI → POST /run/stream</text>
+  </g>
+
+  <!-- B: intent gate (highlighted, the key decision point) -->
+  <g>
+    <rect x="330" y="176" width="460" height="58" rx="10" fill="#eef1ff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="560" y="200" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#1f2430">Intent.classify()</text>
+    <text x="560" y="218" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" fill="#5b6270">Claude Haiku · strict JSON output</text>
+  </g>
+
+  <!-- C -->
+  <g>
+    <rect x="80" y="297" width="300" height="66" rx="10" fill="#ffffff" stroke="#c7cbd6" stroke-width="1.5"/>
+    <text x="230" y="325" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#1f2430">Direct reply</text>
+    <text x="230" y="343" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" fill="#5b6270">CHAT or SNIPPET — Planner never runs</text>
+  </g>
+
+  <!-- D -->
+  <g>
+    <rect x="570" y="297" width="340" height="66" rx="10" fill="#ffffff" stroke="#c7cbd6" stroke-width="1.5"/>
+    <text x="740" y="325" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#1f2430">Planner crew</text>
+    <text x="740" y="343" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" fill="#5b6270">plan.json → assumptions + tasks</text>
+  </g>
+
+  <!-- F -->
+  <g>
+    <rect x="570" y="403" width="340" height="74" rx="10" fill="#ffffff" stroke="#c7cbd6" stroke-width="1.5"/>
+    <text x="740" y="433" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#1f2430">Plan card shown to user</text>
+    <text x="740" y="451" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" fill="#5b6270">Approve &amp; Build · Request changes</text>
+  </g>
+
+  <!-- G -->
+  <g>
+    <rect x="960" y="403" width="200" height="74" rx="10" fill="#ffffff" stroke="#c7cbd6" stroke-width="1.5"/>
+    <text x="1060" y="433" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2430">POST /replan</text>
+    <text x="1060" y="451" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#5b6270">Planner re-runs with feedback</text>
+  </g>
+
+  <!-- H -->
+  <g>
+    <rect x="610" y="519" width="260" height="52" rx="10" fill="#ffffff" stroke="#c7cbd6" stroke-width="1.5"/>
+    <text x="740" y="551" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#1f2430">POST /build/stream</text>
+  </g>
+
+  <!-- I -->
+  <g>
+    <rect x="580" y="601" width="320" height="68" rx="10" fill="#ffffff" stroke="#c7cbd6" stroke-width="1.5"/>
+    <text x="740" y="629" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#1f2430">Coder crew</text>
+    <text x="740" y="647" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" fill="#5b6270">write_file · read_file · list_files</text>
+  </g>
+
+  <!-- J -->
+  <g>
+    <rect x="570" y="701" width="340" height="68" rx="10" fill="#ffffff" stroke="#c7cbd6" stroke-width="1.5"/>
+    <text x="740" y="729" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#1f2430">Reviewer crew</text>
+    <text x="740" y="747" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" fill="#5b6270">syntax check + plan-vs-workspace check</text>
+  </g>
+
+  <!-- E: sink -->
+  <g>
+    <rect x="195" y="851" width="760" height="78" rx="10" fill="#eaf7ef" stroke="#2f9e5b" stroke-width="1.5"/>
+    <text x="575" y="881" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#1f2430">Persisted — messages + agent_traces tables</text>
+    <text x="575" y="900" text-anchor="middle" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="12.5" fill="#5b6270">Shown in chat, replayable, visible in the trace panel</text>
+  </g>
+</svg>

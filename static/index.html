@@ -340,8 +340,55 @@
             </div>
         </div>
 
+        <!-- Shown once at the start of every session (static/js/app.js's init()) -- a
+             plain intro to what the assistant does. Purely informational: the OK button
+             and the corner close button both just dismiss it, nothing else. -->
+        <div id="welcomeModal" class="modal-overlay hidden">
+            <div
+                class="modal-card has-close"
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="welcomeModalTitle"
+                aria-describedby="welcomeModalMessage"
+            >
+                <button
+                    type="button"
+                    class="modal-close-x"
+                    id="welcomeModalClose"
+                    aria-label="Close"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.75"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                    </svg>
+                </button>
+                <h3 id="welcomeModalTitle">Hi, I'm Amper 👋</h3>
+                <p id="welcomeModalMessage">
+                    Ask me to build or fix a feature and I'll turn it into a step-by-step
+                    plan you can review before any code gets written -- then I implement it
+                    and check my own work, retrying automatically if something's off. You
+                    can also ask a quick coding question, or just what I can do, with no
+                    plan needed. I stick to coding/planning topics for this app, so
+                    general-knowledge questions (weather, trivia, and the like) are outside
+                    what I can help with.
+                </p>
+                <div class="modal-actions">
+                    <button type="button" class="modal-confirm modal-ok" id="welcomeModalOk">
+                        Got it
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Lightweight markdown-to-HTML parser for the About / "What I'd Do Differently"
-             tabs (static/js/app.js's renderReadmeInto()) -- no build step, so it's loaded
+             tabs (static/js/app.js's loadMarkdownDoc()) -- no build step, so it's loaded
              straight from a CDN rather than bundled. -->
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
         <script src="/static/js/app.js"></script>
