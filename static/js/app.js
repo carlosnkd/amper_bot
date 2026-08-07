@@ -1630,9 +1630,33 @@ const FILE_EXTENSION_BY_LANGUAGE = {
  * to chat/snippet replies, which have no chips backing them and are expected to show
  * real code inline.
  */
+// Hard cap on a build summary's displayed length, applied AFTER fence-stripping below --
+// a backstop against a verbose (or truncated mid-generation) Coder response flooding the
+// chat regardless of its markdown shape. The chips are the real, complete file list
+// either way, so a few sentences of prose here is plenty.
+const MAX_BUILD_SUMMARY_CHARS = 500;
+
 function stripCodeFences(text) {
-    const stripped = text.replace(/```[\s\S]*?```/g, '').trim();
-    return stripped || 'Done -- see the files above.';
+    // Paired fences first.
+    let stripped = text.replace(/```[\s\S]*?```/g, '');
+
+    // An UNTERMINATED trailing fence -- e.g. the Coder's response got cut off
+    // mid-file (hit a token limit) before its closing ``` ever arrived -- has no
+    // closing marker for the pattern above to match, so it survives untouched. Every
+    // ``` still present at this point can only be one of those openers (paired ones are
+    // already gone), so drop from the last one to the end too.
+    const lastFenceIndex = stripped.lastIndexOf('```');
+    if (lastFenceIndex !== -1) {
+        stripped = stripped.slice(0, lastFenceIndex);
+    }
+
+    stripped = stripped.trim();
+    if (!stripped) return 'Done -- see the files above.';
+
+    if (stripped.length > MAX_BUILD_SUMMARY_CHARS) {
+        stripped = `${stripped.slice(0, MAX_BUILD_SUMMARY_CHARS).trim()}…`;
+    }
+    return stripped;
 }
 
 function suggestSnippetFilename(language) {
