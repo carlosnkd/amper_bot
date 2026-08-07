@@ -1,26 +1,43 @@
 {
   "assumptions": [
-    "The endpoint is mounted at the application root as `/ping`, not behind any existing API version prefix (e.g. `/api/v1`), because it is meant to be a trivially reachable liveness probe.",
-    "`/ping` is public: it must be excluded from any global authentication/authorization dependency, API-key check, or rate-limiting middleware the app applies to other routes.",
-    "It is a pure liveness check with no dependency probing — it does not touch the database, cache, or any downstream service, and always returns 200 with a static body.",
-    "The route belongs in the existing health/system router if one exists; if the codebase has no such router, a new `health` router module is created and included in the app rather than defining the route inline in the app entrypoint."
+    "Redis is the rate-limit counter store (shared across API instances), with a process-local in-memory fallback for local dev and tests. A purely in-memory limiter would not survive multiple instances, so this choice changes the implementation materially.",
+    "Limits are keyed by authenticated principal (API key / user ID) when the request is authenticated, and by client IP (resolved from the trusted proxy header) for anonymous requests. This assumes the API sits behind a known reverse proxy whose forwarded-for header can be trusted.",
+    "The algorithm is a sliding-window counter implemented atomically in Redis (Lua script or INCR+EXPIRE), chosen over a token bucket because burst allowance is not requested and per-window semantics map directly to the X-RateLimit-* headers we expose.",
+    "Limits are applied globally to all API endpoints via middleware, with a config-driven override table for specific routes (e.g. tighter limits on auth/login endpoints, exemptions for health checks).",
+    "On a limiter backend outage the middleware fails open (allows the request) and logs an error, prioritizing availability over strict enforcement."
   ],
   "tasks": [
     {
       "id": "T1",
-      "description": "Locate the FastAPI application entrypoint (e.g. `main.py` / `app/main.py`) and the existing router layout. Add a `GET /ping` route to the existing health/system router; if no such router exists, create one (e.g. `app/routers/health.py` following the project's existing router conventions) and include it on the app with no prefix so the final path is exactly `/ping`. The handler takes no parameters and returns the literal JSON body `{\"pong\": true}` with HTTP 200."
+      "description": "Define the rate-limit configuration schema and load it from the existing app config/env: global default limit (requests per window) and window length, per-route overrides keyed by method+path pattern, an exempt-routes list, the identity strategy (authenticated principal vs IP), the trusted-proxy header name, backend selection (redis|memory), Redis connection URL, and an enabled/disabled kill switch. Include sane defaults (e.g. 100 req / 60s) so the system works with zero config, plus validation that rejects malformed limit definitions at startup."
     },
     {
       "id": "T2",
-      "description": "Ensure `/ping` is reachable without credentials: if the app applies a global auth dependency (`FastAPI(dependencies=[...])`, an auth middleware, or a router-level dependency), add `/ping` to its exempt/whitelist path list alongside any existing exempted paths such as `/health`, `/docs`, or `/openapi.json`. Do the same for any global rate-limiting middleware. If no global auth or rate limiting exists, make no changes and note that in the PR description."
+      "description": "Implement the limiter core behind a single interface (e.g. RateLimiter.check(key, limit, window) -> {allowed, limit, remaining, reset_at, retry_after}) with two backends: a Redis sliding-window counter executed as an atomic Lua script (or INCR + conditional EXPIRE) so concurrent requests across instances cannot over-admit, and an in-memory backend with the same semantics and periodic eviction of expired keys for dev/test. Redis errors must surface as a distinguishable failure result rather than an exception escaping into request handling."
     },
     {
       "id": "T3",
-      "description": "Add a test in the project's existing test suite (using `TestClient`/`httpx.AsyncClient` consistent with current tests) that calls `GET /ping` and asserts status code 200, `response.json() == {\"pong\": True}`, and that the request succeeds with no auth headers supplied."
+      "description": "Implement the key-derivation logic: resolve the caller identity to a stable rate-limit key using the authenticated principal when present, otherwise the client IP parsed from the trusted-proxy header (falling back to the socket peer address), and namespace the key by route bucket so per-route overrides get independent counters. Handle multi-hop forwarded-for values by taking the correct client entry given the configured number of trusted proxies, and normalize IPv6 addresses."
     },
     {
       "id": "T4",
-      "description": "Polish the OpenAPI surface and docs: give the route an explicit `response_model` (or `responses` schema) and a `summary`/`tags` value matching the conventions used by neighbouring routes so it renders sensibly in `/docs`, and add a one-line entry for `GET /ping` to the API endpoint list in the README or existing API documentation."
+      "description": "Add the rate-limit middleware and wire it into the API's global middleware chain ahead of route handlers but after authentication (so the authenticated principal is available for keying). The middleware resolves the applicable limit for the matched route, calls the limiter, allows or rejects, sets X-RateLimit-Limit, X-RateLimit-Remaining and X-RateLimit-Reset on every response, and skips exempt routes and health/metrics endpoints entirely. When the backend fails, log an error and allow the request through (fail open) per the configured policy."
+    },
+    {
+      "id": "T5",
+      "description": "Implement the throttled response path: return HTTP 429 with a Retry-After header and a JSON error body matching the API's existing error envelope (error code such as rate_limit_exceeded, human-readable message, and reset timestamp). Make sure the 429 is produced consistently for all endpoints including those with custom error handlers, and that it is not swallowed or reformatted by the global exception handler."
+    },
+    {
+      "id": "T6",
+      "description": "Add observability: structured log lines on every throttle event (key, route, limit, current count) sampled or rate-limited to avoid log floods, counters/metrics for allowed vs throttled requests and limiter backend errors labelled by route, and an admin/debug endpoint or CLI command to inspect and reset the current counter for a given key to support operations."
+    },
+    {
+      "id": "T7",
+      "description": "Write tests: unit tests for the sliding-window arithmetic and key derivation (including forwarded-for parsing edge cases and window boundary/reset behavior with a mocked clock), integration tests against a real Redis instance covering concurrent requests not exceeding the limit and counters expiring correctly, and endpoint tests asserting 200s up to the limit, a 429 with correct headers and body past it, per-route override behavior, exempt routes never throttled, and fail-open behavior when the backend is unreachable."
+    },
+    {
+      "id": "T8",
+      "description": "Document the feature: README/API-docs section describing the default limits, per-route overrides, the response headers and 429 contract for API consumers, and the operational runbook for tuning limits, disabling the limiter via the kill switch, and resetting a stuck key. Include the Redis dependency in local dev setup (docker-compose service) and deployment config."
     }
   ]
 }

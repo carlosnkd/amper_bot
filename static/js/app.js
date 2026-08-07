@@ -757,7 +757,11 @@ function renderPlanMessage(plan, conversationId, ticketText, options = {}) {
 }
 
 function lockPlanCard(card) {
-    card.querySelectorAll('button').forEach((btn) => (btn.disabled = true));
+    // Excludes .plan-show-more -- those just reveal already-rendered list items and
+    // aren't part of the plan's editable/submittable state, so they should stay
+    // clickable even on a resolved/read-only card (otherwise revisiting a past
+    // conversation leaves "Show N more..." looking clickable but dead).
+    card.querySelectorAll('button:not(.plan-show-more)').forEach((btn) => (btn.disabled = true));
     card.querySelectorAll('[contenteditable]').forEach((el) => {
         el.contentEditable = 'false';
     });
@@ -1278,9 +1282,18 @@ function createLiveBuildMessage() {
         els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
     };
 
+    // Starts ticking immediately under "Starting…", same as every later setStatus() call --
+    // so the countup is live from the moment this card appears, not just once the first
+    // "phase" event arrives.
+    startPhaseTimer('Starting…', (text) => {
+        statusLabel.textContent = text;
+    });
+
     return {
         setStatus(label) {
-            statusLabel.textContent = label;
+            startPhaseTimer(label, (text) => {
+                statusLabel.textContent = text;
+            });
             scrollDown();
         },
         upsertFile(path, content) {
@@ -1310,6 +1323,7 @@ function createLiveBuildMessage() {
             scrollDown();
         },
         finish(event) {
+            stopPhaseTimer();
             card.classList.remove('build-live');
             statusRow.classList.add('hidden');
             summaryEl.classList.remove('hidden');
@@ -1319,6 +1333,7 @@ function createLiveBuildMessage() {
             scrollDown();
         },
         fail(message) {
+            stopPhaseTimer();
             card.classList.remove('build-live');
             statusRow.classList.add('build-error');
             statusLabel.textContent = message || 'Build failed';
@@ -1524,19 +1539,47 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+// Ticks "<label> · Ns" once a second, restarting from 0s every time a new phase begins --
+// reassures the user that a long-running phase (an LLM call, a file write) is still
+// moving, not frozen. Only one phase indicator (typing indicator or live build status) is
+// ever on screen at a time, so a single module-level interval is enough; starting a new
+// one always tears down whatever was running before.
+let phaseTimerId = null;
+
+function stopPhaseTimer() {
+    if (phaseTimerId !== null) {
+        clearInterval(phaseTimerId);
+        phaseTimerId = null;
+    }
+}
+
+function startPhaseTimer(label, onTick) {
+    stopPhaseTimer();
+    const startedAt = Date.now();
+    const tick = () => onTick(`${label} · ${Math.floor((Date.now() - startedAt) / 1000)}s`);
+    tick();
+    phaseTimerId = setInterval(tick, 1000);
+}
+
 function showTypingIndicator(label) {
     removeTypingIndicator();
     const node = document.createElement('div');
     node.className = 'typing-indicator';
     node.id = 'typingIndicator';
-    node.innerHTML = `<span></span><span></span><span></span>${
-        label ? `<em>${escapeHtml(label)}</em>` : ''
-    }`;
+    node.innerHTML = `<span></span><span></span><span></span>${label ? '<em></em>' : ''}`;
     els.chatWindow.appendChild(node);
     els.chatWindow.scrollTop = els.chatWindow.scrollHeight;
+
+    if (label) {
+        const labelEl = node.querySelector('em');
+        startPhaseTimer(label, (text) => {
+            labelEl.textContent = text;
+        });
+    }
 }
 
 function removeTypingIndicator() {
+    stopPhaseTimer();
     const indicator = document.getElementById('typingIndicator');
     if (indicator) indicator.remove();
 }
