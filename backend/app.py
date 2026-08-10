@@ -26,6 +26,10 @@ def on_startup() -> None:
 def serve_landing():
     return FileResponse(Path("static/landing.html"))
 
+@app.get("/projects")
+def serve_projects():
+    return FileResponse(Path("static/projects.html"))
+
 @app.get("/resume.pdf")
 def serve_resume():
     return FileResponse(
