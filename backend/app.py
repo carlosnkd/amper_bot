@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from pathlib import Path
+from a2wsgi import WSGIMiddleware
 from backend.api.routes import router
 from backend.main import init_db
+from date_invitation.app import app as date_invitation_app
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
@@ -14,6 +16,16 @@ app = FastAPI(title="Amper API", docs_url="/docs")
 # see those files for the corresponding absolute-path changes.
 app.mount("/coddy/static", StaticFiles(directory="static"), name="static")
 app.include_router(router, prefix="/coddy")
+
+# Date Invitation is a separate Flask (WSGI) app -- date_invitation/app.py, copied in
+# from github.com/carlosnkd/date-invitation -- mounted in-process rather than proxied
+# to a second service, since it's small and dependency-free enough not to warrant its
+# own deployment. a2wsgi bridges WSGI<->ASGI and sets SCRIPT_NAME on the way in, so
+# Flask's own `url_for('static', ...)` calls in its templates already emit correctly
+# prefixed URLs (e.g. /date-invitation/static/css/style.css) with no template changes.
+# Its email-sending env vars (SMTP_*/MAILGUN_*, see date_invitation/.env.example) must
+# be set wherever this service runs -- they're not committed, same as this app's own .env.
+app.mount("/date-invitation", WSGIMiddleware(date_invitation_app))
 
 
 @app.on_event("startup")

@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>¿Quieres salir conmigo? ❤️</title>
+
+        <!-- Tipografía Poppins -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+            rel="stylesheet"
+        />
+
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='css/style.css') }}"
+        />
+    </head>
+    <body>
+        <!-- Fondo de corazones flotantes, presente durante toda la experiencia -->
+        <div class="hearts-bg" id="heartsBg" aria-hidden="true"></div>
+
+        <!-- Barra de progreso superior -->
+        <div class="progress-track" aria-hidden="true">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <main class="app" id="app">
+            <!-- ===================== PANTALLA 1 ===================== -->
+            <section class="screen active" data-step="1" id="screen-1">
+                <div class="card card-hero glass">
+                    <p class="eyebrow">
+                        Mugrosilla, para que no digas que no le estoy echando
+                        ganas
+                    </p>
+                    <h1 class="title-xl">¿Quieres salir conmigo?</h1>
+                    <p class="subtitle">
+                        O como se diría en abogado: Se presenta de manera
+                        voluntarria, expresa y de buena fé formal solicitud para
+                        la celebración de una cita entre el promovente y la
+                        parte destinataria, con el objeto de continuar con el
+                        proceso de conocimiento mutuo y determinar la existencia
+                        de afinidad suficiente para la constitución de un
+                        vínculo afectivo bilateral.
+                    </p>
+
+                    <div class="button-row hero-buttons" id="heroButtons">
+                        <button
+                            class="btn btn-primary btn-pulse"
+                            id="btnYes"
+                            type="button"
+                        >
+                            Símon <span></span>
+                        </button>
+                        <button
+                            class="btn btn-ghost btn-dodge"
+                            id="btnNo"
+                            type="button"
+                        >
+                            No (Igual no puedes)
+                            <span class="emoji"></span>
+                        </button>
+                    </div>
+
+                    <div class="hero-video-card glass">
+                        <video
+                            loop
+                            playsinline
+                            class="hero-video"
+                            preload="auto"
+                        >
+                            <source
+                                src="{{ url_for('static', filename='videos/buenas-tardes.mp4') }}"
+                                type="video/mp4"
+                            />
+                            Tu navegador no soporta el video.
+                        </video>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===================== PANTALLA 2 ===================== -->
+            <section class="screen" data-step="2" id="screen-2">
+                <div class="screen-inner">
+                    <p class="eyebrow">
+                        paso 1 de 4 (Sí, te pongo la cantidad de pasos porque ya
+                        se como eres de desesperada)
+                    </p>
+                    <h2 class="title-lg">Escoge el lugar</h2>
+                    <p class="subtitle">
+                        Si ya los conoces, favor de avisar para cambiar las
+                        opciones, gracias vuelva pronto
+                    </p>
+
+                    <div class="options-grid">
+                        <button
+                            class="option-card glass"
+                            data-value="Cerro del Espolón"
+                            type="button"
+                        >
+                            <div
+                                class="option-photo"
+                                style="background-image:url('{{ url_for('static', filename='images/cerro-espolon.jpg') }}');"
+                            ></div>
+                            <div class="option-body">
+                                <h3>Cerro del Espolón</h3>
+                                <p>
+                                    Tenemos que levantarnos temprano y caminar
+                                    un chingo pero va a valer la pena.
+                                </p>
+                                <span class="select-tag">Seleccionar</span>
+                            </div>
+                        </button>
+
+                        <button
+                            class="option-card glass"
+                            data-value="Cueva del Tecolote"
+                            type="button"
+                        >
+                            <div
+                                class="option-photo"
+                                style="background-image:url('{{ url_for('static', filename='images/cueva-tecolote.jpg') }}');"
+                            ></div>
+                            <div class="option-body">
+                                <h3>Cueva del Tecolote</h3>
+                                <p>Lo de al lado pero con rapel</p>
+                                <span class="select-tag">Seleccionar</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div class="screen-video-card glass">
+                        <video
+                            loop
+                            playsinline
+                            class="screen-video"
+                            preload="auto"
+                        >
+                            <source
+                                src="{{ url_for('static', filename='videos/presentacion.mp4') }}"
+                                type="video/mp4"
+                            />
+                            Tu navegador no soporta el video.
+                        </video>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===================== PANTALLA 3 ===================== -->
+            <section class="screen" data-step="3" id="screen-3">
+                <div class="screen-inner">
+                    <p class="eyebrow">paso 2 de 4</p>
+                    <h2 class="title-lg">
+                        ¿Cómo prefieres vivir la experiencia?
+                    </h2>
+
+                    <div class="experience-layout">
+                        <div class="experience-options">
+                            <button
+                                class="mini-card glass"
+                                data-value="Llegar directo"
+                                type="button"
+                            >
+                                <span class="mini-icon">🚗</span>
+                                <div>
+                                    <h4>La soltera número 1</h4>
+                                    <p>
+                                        Llegar directo, hay que estar tipo
+                                        4:30am
+                                    </p>
+                                </div>
+                            </button>
+
+                            <button
+                                class="mini-card glass"
+                                data-value="Acampar"
+                                type="button"
+                            >
+                                <span class="mini-icon">🏕️</span>
+                                <div>
+                                    <h4>La soltera número 2</h4>
+                                    <p>
+                                        Acampar en el lugar para salir temprano
+                                    </p>
+                                </div>
+                            </button>
+
+                            <button
+                                class="mini-card glass"
+                                data-value="Hotel"
+                                type="button"
+                            >
+                                <span class="mini-icon">🛎️</span>
+                                <div>
+                                    <h4>La soltera número 3</h4>
+                                    <p>Hotel en el lugar para salir temprano</p>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div class="video-container glass">
+                            <!--
+              COLOCA AQUÍ TU VIDEO:
+              Reemplaza el archivo static/videos/preview.mp4 por el video que quieras mostrar.
+              Debe llamarse "preview.mp4" o bien actualiza el "src" de abajo.
+            -->
+                            <video
+                                loop
+                                playsinline
+                                class="preview-video"
+                                preload="auto"
+                            >
+                                <source
+                                    src="{{ url_for('static', filename='videos/la3.mp4') }}"
+                                    type="video/mp4"
+                                />
+                                Tu navegador no soporta el video.
+                            </video>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===================== PANTALLA 4 ===================== -->
+            <section class="screen" data-step="4" id="screen-4">
+                <div class="card card-narrow glass">
+                    <p class="eyebrow">paso 3 de 4</p>
+                    <h2 class="title-lg">
+                        When? (Cuándo para las que no hablan inglés)
+                    </h2>
+
+                    <div class="date-field">
+                        <input
+                            type="date"
+                            id="dateInput"
+                            class="date-input"
+                            required
+                        />
+                    </div>
+
+                    <p class="romantic-note">
+                        Igual se puede cambiar, solo es para que nos demos una
+                        idea
+                    </p>
+
+                    <button
+                        class="btn btn-primary"
+                        id="btnDateNext"
+                        type="button"
+                        disabled
+                    >
+                        Continuar
+                    </button>
+                </div>
+            </section>
+
+            <!-- ===================== PANTALLA 5 ===================== -->
+            <section class="screen" data-step="5" id="screen-5">
+                <div class="card card-narrow glass">
+                    <p class="eyebrow">paso 4 de 4</p>
+                    <h2 class="title-lg">Resumen del pedido:</h2>
+
+                    <div class="summary-list">
+                        <div class="summary-item">
+                            <span class="summary-label">Where</span>
+                            <span class="summary-value" id="summaryLugar"
+                                >—</span
+                            >
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">How</span>
+                            <span class="summary-value" id="summaryExperiencia"
+                                >—</span
+                            >
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">When</span>
+                            <span class="summary-value" id="summaryFecha"
+                                >—</span
+                            >
+                        </div>
+                    </div>
+
+                    <button
+                        class="btn btn-primary btn-large"
+                        id="btnSubmit"
+                        type="button"
+                    >
+                        Enviar respuesta
+                    </button>
+
+                    <p class="status-message" id="statusMessage"></p>
+                </div>
+            </section>
+
+            <!-- ===================== PANTALLA FINAL ===================== -->
+            <section class="screen" data-step="6" id="screen-6">
+                <div class="card card-narrow glass final-card">
+                    <span class="final-emoji">🎉❤️</span>
+                    <h2 class="title-lg">
+                        Tengo que confesar que pensé no completarias los pasos
+                    </h2>
+                    <p class="subtitle">
+                        Ya sé que me dijiste que había que dar dress code para
+                        las salidas, pero voy a confiar en que sabes como ir
+                        vestida
+                    </p>
+                </div>
+            </section>
+        </main>
+
+        <canvas id="confettiCanvas" aria-hidden="true"></canvas>
+
+        <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    </body>
+</html>
