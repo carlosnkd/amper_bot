@@ -65,6 +65,9 @@
                 color: var(--text);
             }
             body {
+                display: flex;
+                flex-direction: column;
+                min-height: 100vh;
                 transition:
                     background 220ms ease,
                     color 220ms ease;
@@ -147,11 +150,17 @@
 
             /* ---------- Layout ---------- */
             main {
-                max-width: 1040px;
-                margin: 0 auto;
+                flex: 1;
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 padding: 0 24px;
             }
             .projects {
+                width: 100%;
+                max-width: 1040px;
+                margin: 0 auto;
                 padding: 48px 0 88px;
             }
             .section-heading {
@@ -172,7 +181,8 @@
 
             .flip-card {
                 perspective: 1400px;
-                height: 260px;
+                /* Fallback before JS measures and equalizes exact heights below. */
+                height: 340px;
             }
             .flip-card-inner {
                 position: relative;
@@ -350,14 +360,19 @@
                                     <p class="project-desc">
                                         A chat assistant built on CrewAI,
                                         FastAPI, and Anthropic's Claude models.
-                                        A three-agent pipeline — Planner, Coder,
-                                        Reviewer — turns a short feature ticket
-                                        into an editable plan, a real
-                                        implementation, and a pass/fail review
+                                        A three-agent pipeline (Planner, Coder,
+                                        Reviewer) turns a short feature ticket
+                                        into an editable, approval-gated plan
+                                        before anything gets built, then a real
+                                        implementation and a pass/fail review
                                         that sends the work back for another
-                                        attempt when it fails. Chit-chat and
-                                        one-off snippets are answered directly,
-                                        skipping the pipeline entirely.
+                                        attempt when it fails. Progress streams
+                                        live to the UI as it happens, and
+                                        conversations persist so past plans and
+                                        builds replay exactly as they looked.
+                                        Chit-chat and one-off snippets skip the
+                                        pipeline entirely and get answered
+                                        directly.
                                     </p>
                                 </div>
                                 <a class="project-link" href="/coddy">
@@ -515,11 +530,21 @@
 
             // Flip cards: click/tap anywhere on the card flips it, except a tap that lands
             // on the project link -- that should navigate, not flip. Keyboard users get the
-            // same toggle on Enter/Space via the card's own role="button".
-            document.querySelectorAll('.flip-card').forEach((card) => {
+            // same toggle on Enter/Space via the card's own role="button". Only one card
+            // stays flipped at a time -- flipping one unflips whichever other card was open.
+            const allFlipCards = document.querySelectorAll('.flip-card');
+            allFlipCards.forEach((card) => {
                 function toggle() {
                     const flipped = card.classList.toggle('flipped');
                     card.setAttribute('aria-pressed', String(flipped));
+                    if (flipped) {
+                        allFlipCards.forEach((other) => {
+                            if (other !== card && other.classList.contains('flipped')) {
+                                other.classList.remove('flipped');
+                                other.setAttribute('aria-pressed', 'false');
+                            }
+                        });
+                    }
                 }
                 card.addEventListener('click', (e) => {
                     if (e.target.closest('a')) return;
@@ -536,6 +561,39 @@
 
             document.getElementById('year').textContent =
                 new Date().getFullYear();
+
+            // Equalize card heights: measure every face's natural content
+            // height (front and back, across all cards) and set every card
+            // to the tallest one found. Keeps cards uniform no matter how
+            // much text a given face holds, and stays correct if that text
+            // changes later or the layout reflows (e.g. window resize).
+            const flipCards = document.querySelectorAll('.flip-card');
+            function equalizeCardHeights() {
+                if (!flipCards.length) return;
+                const faces = document.querySelectorAll('.flip-face');
+                flipCards.forEach((card) => {
+                    card.style.height = 'auto';
+                });
+                faces.forEach((face) => {
+                    face.style.position = 'static';
+                });
+                let max = 0;
+                faces.forEach((face) => {
+                    max = Math.max(max, face.offsetHeight);
+                });
+                faces.forEach((face) => {
+                    face.style.position = '';
+                });
+                flipCards.forEach((card) => {
+                    card.style.height = max + 'px';
+                });
+            }
+            window.addEventListener('load', equalizeCardHeights);
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(equalizeCardHeights, 150);
+            });
         </script>
     </body>
 </html>

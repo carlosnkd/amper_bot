@@ -177,5 +177,5 @@ def serve_resume():
         Path("CarlosNakidResume.pdf"),
         media_type="application/pdf",
         filename="CarlosNakidResume.pdf",
-        as_attachment=False
+        content_disposition_type="inline"
     )
