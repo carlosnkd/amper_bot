@@ -11,3 +11,6 @@ __pycache__/
 
 #json credentials
 ammper*.json
+
+# password gate for /coddy and /date-invitation (see project_password.example.json)
+project_password.json
