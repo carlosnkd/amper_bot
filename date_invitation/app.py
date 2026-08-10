@@ -21,6 +21,8 @@ from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 
+from backend.access import cookie_name, decode_role
+
 # ---------------------------------------------------------------------------
 # Configuración inicial
 # ---------------------------------------------------------------------------
@@ -29,6 +31,33 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+
+# Mirrors Coddy's guest/full split (see backend/access.py + backend/app.py's
+# gate_date_invitation()/unlock_date_invitation()/guest_date_invitation()):
+# a guest session can view the whole invitation flow but can't actually send
+# one. Enforced here, server-side -- not just by hiding the button -- since
+# these paths are reachable directly regardless of what the page's own JS
+# does. Checked by path because this Flask app is mounted under /date-invitation
+# via WSGIMiddleware (see backend/app.py) but sees its own routes unprefixed.
+_GUEST_BLOCKED_PATHS = {"/submit", "/test-email"}
+
+
+@app.before_request
+def _block_guest_mutations():
+    if request.path not in _GUEST_BLOCKED_PATHS:
+        return None
+    role = decode_role(request.cookies.get(cookie_name("date_invitation")), "date_invitation")
+    if role != "full":
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "message": "Read-only guest access -- enter the password to do this.",
+                }
+            ),
+            403,
+        )
+    return None
 
 # Variables de entorno para el envío de correo (definidas en .env)
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")

@@ -120,8 +120,6 @@ svg {
     flex-shrink: 0;
 }
 .header-inner {
-    max-width: 1400px;
-    margin: 0 auto;
     height: 64px;
     padding: 0 24px;
     display: flex;

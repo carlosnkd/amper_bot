@@ -1,0 +1,265 @@
+/* ---------------------------------------------------------------------------
+ * Password-gate overlay, shared by /coddy and /date-invitation.
+ *
+ * Injected (via backend/access.py's inject_gate()) into the project's already-
+ * rendered page rather than shipped as its own page, so the real UI sits
+ * visible-but-blurred behind the overlay ("html.gate-locked") instead of being
+ * replaced by a blank gate screen. See gate.js for the behavior this drives.
+ * ------------------------------------------------------------------------- */
+
+:root {
+    --gate-overlay-bg: rgba(15, 20, 30, 0.55);
+    --gate-card-bg: #ffffff;
+    --gate-card-border: #e2e7ef;
+    --gate-text: #101828;
+    --gate-muted: #64748b;
+    --gate-accent: #0b2f5e;
+    --gate-accent-hover: #0f3d78;
+    --gate-accent-soft: rgba(11, 47, 94, 0.08);
+    --gate-error: #d33;
+    --gate-banner-bg: #fef3c7;
+    --gate-banner-text: #78350f;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --gate-overlay-bg: rgba(3, 6, 12, 0.65);
+        --gate-card-bg: #141c2e;
+        --gate-card-border: rgba(255, 255, 255, 0.12);
+        --gate-text: #eef1f6;
+        --gate-muted: #93a0b8;
+        --gate-accent: #4d7fc4;
+        --gate-accent-hover: #6293d1;
+        --gate-accent-soft: rgba(77, 127, 196, 0.16);
+        --gate-banner-bg: #3a2c0a;
+        --gate-banner-text: #fde68a;
+    }
+}
+
+/* Blurs everything on the page except the overlay itself -- generic (no
+   per-project selector) so the same rule works for Coddy's .app-shell and
+   Date Invitation's main.app/.hearts-bg/.progress-track alike. */
+html.gate-locked {
+    overflow: hidden;
+}
+html.gate-locked body > *:not(#gate-overlay) {
+    filter: blur(7px);
+    pointer-events: none;
+    user-select: none;
+}
+
+#gate-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--gate-overlay-bg);
+    font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        'Segoe UI',
+        sans-serif;
+}
+.gate-card {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    padding: 32px;
+    border-radius: 14px;
+    background: var(--gate-card-bg);
+    border: 1px solid var(--gate-card-border);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.28);
+    text-align: center;
+    box-sizing: border-box;
+    color: var(--gate-text);
+}
+.gate-card h1 {
+    font-size: 18px;
+    margin: 0 0 6px;
+}
+.gate-sub {
+    margin: 0 0 22px;
+    font-size: 13.5px;
+    color: var(--gate-muted);
+}
+.gate-actions,
+.gate-password-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.gate-hidden {
+    display: none !important;
+}
+.gate-actions button,
+.gate-password-form button,
+.gate-password-form input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    border: 1px solid var(--gate-card-border);
+}
+#gate-btn-have,
+.gate-password-form button[type='submit'] {
+    background: var(--gate-accent);
+    color: #fff;
+    border: 0;
+    font-weight: 600;
+    cursor: pointer;
+}
+#gate-btn-have:hover,
+.gate-password-form button[type='submit']:hover {
+    background: var(--gate-accent-hover);
+}
+#gate-btn-request {
+    background: transparent;
+    color: var(--gate-text);
+    font-weight: 600;
+    cursor: pointer;
+}
+#gate-btn-request:hover {
+    background: var(--gate-accent-soft);
+}
+.gate-password-form input {
+    background: transparent;
+    color: var(--gate-text);
+}
+.gate-btn-back {
+    background: transparent;
+    border-color: transparent;
+    color: var(--gate-muted);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 4px 12px;
+    cursor: pointer;
+}
+.gate-btn-back:hover {
+    color: var(--gate-text);
+    text-decoration: underline;
+}
+.gate-error {
+    margin: 4px 0 0;
+    font-size: 12.5px;
+    color: var(--gate-error);
+    font-weight: 600;
+}
+.gate-note {
+    margin: 14px 0 0;
+    font-size: 12.5px;
+    color: var(--gate-muted);
+    line-height: 1.5;
+}
+
+/* Coddy's gate card: always dark with white text, regardless of light/dark
+   preference -- the rest of the gate is light/dark-adaptive (see the
+   variables at the top of this file), but Coddy asked for white text
+   specifically, which only reads cleanly on a background dark enough to
+   guarantee the contrast (rather than going invisible in light mode). */
+#gate-overlay.gate-project-coddy .gate-card {
+    background: #101828;
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+}
+/* Coddy's own app.css sets `h1 { color: var(--text) }` directly (see
+   static/css/app.css) -- a rule that matches the element itself always beats
+   an inherited value, no matter how specific the parent rule is, so the
+   heading needs its own explicit override here rather than relying on
+   inheriting color from .gate-card above. */
+#gate-overlay.gate-project-coddy .gate-card h1 {
+    color: #ffffff;
+}
+#gate-overlay.gate-project-coddy .gate-sub,
+#gate-overlay.gate-project-coddy .gate-note {
+    color: rgba(255, 255, 255, 0.72);
+}
+#gate-overlay.gate-project-coddy .gate-password-form input {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+#gate-overlay.gate-project-coddy #gate-btn-request,
+#gate-overlay.gate-project-coddy .gate-btn-back {
+    color: #ffffff;
+}
+#gate-overlay.gate-project-coddy #gate-btn-request:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+#gate-overlay.gate-project-coddy .gate-btn-back:hover {
+    color: #ffffff;
+}
+#gate-overlay.gate-project-coddy #gate-close {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* Guest-mode banner -- stays on screen (not blurred, page underneath is
+   fully usable, just read-only) as a constant reminder + upgrade path. */
+#gate-banner {
+    position: sticky;
+    top: 0;
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 8px 16px;
+    background: var(--gate-banner-bg);
+    color: var(--gate-banner-text);
+    font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        'Segoe UI',
+        sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: center;
+}
+#gate-banner button {
+    border: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+#gate-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 12px);
+    background: #101828;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        'Segoe UI',
+        sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 180ms ease,
+        transform 180ms ease;
+    z-index: 10000;
+    max-width: min(360px, calc(100vw - 32px));
+    text-align: center;
+}
+#gate-toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}

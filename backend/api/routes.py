@@ -4,6 +4,7 @@ import logging
 import queue
 import uuid
 from pathlib import Path
+from backend.access import require_any, require_full
 from backend.main import get_db
 from fastapi import APIRouter, UploadFile, File, Form, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -22,7 +23,15 @@ from agents.ticket_pipeline.main import run_ticket_pipeline
 from agents.ticket_pipeline.flow import WORKSPACES_ROOT
 from agents.ticket_pipeline.tools import resolve_in_workspace
 
-router = APIRouter()
+# Every route in this router lives under the /coddy prefix (see
+# backend/app.py's app.include_router(router, prefix="/coddy")), so a single
+# router-wide dependency enforces "at least a granted session (guest or
+# full)" for everything here. Individual mutating routes below additionally
+# require "full" via _require_full -- see backend/access.py for what those
+# levels mean and static_gate/gate.js for the client-side UX around the same
+# restriction (the actual enforcement is here, not there).
+router = APIRouter(dependencies=[Depends(require_any("coddy"))])
+_require_full = Depends(require_full("coddy"))
 logger = logging.getLogger(__name__)
 
 # repo root -- routes.py is backend/api/routes.py, so two parents up.
@@ -220,7 +229,7 @@ def _plan_turn_message(result: dict, ticket: str):
     return _plan_message_payload(result.get("plan"), ticket)
 
 
-@router.post('/run')
+@router.post('/run', dependencies=[_require_full])
 async def run_agent(
     user_id: str = Form(...),
     query: str = Form(...),
@@ -260,7 +269,7 @@ async def run_agent(
     }
 
 
-@router.post('/run/stream')
+@router.post('/run/stream', dependencies=[_require_full])
 async def run_agent_stream(
     user_id: str = Form(...),
     query: str = Form(...),
@@ -340,7 +349,7 @@ async def run_agent_stream(
     )
 
 
-@router.post('/replan')
+@router.post('/replan', dependencies=[_require_full])
 async def replan(
     user_id: str = Form(...),
     conversation_id: str = Form(...),
@@ -369,7 +378,7 @@ async def replan(
     }
 
 
-@router.post('/build')
+@router.post('/build', dependencies=[_require_full])
 async def build(
     user_id: str = Form(...),
     conversation_id: str = Form(...),
@@ -403,7 +412,7 @@ async def build(
     }
 
 
-@router.post('/build/stream')
+@router.post('/build/stream', dependencies=[_require_full])
 async def build_stream(
     user_id: str = Form(...),
     conversation_id: str = Form(...),
@@ -487,7 +496,7 @@ async def build_stream(
     )
 
 
-@router.post('/run_ticket')
+@router.post('/run_ticket', dependencies=[_require_full])
 async def run_ticket(
     user_id: str,
     ticket: str,
@@ -512,7 +521,7 @@ async def run_ticket(
 
     return result
 
-@router.post('/end_conversation')
+@router.post('/end_conversation', dependencies=[_require_full])
 def end_chat(user_id: str, conversation_id: str, db: Session = Depends(get_db)):
     return end_conversation(user_id, conversation_id, db)
 
@@ -520,7 +529,7 @@ def end_chat(user_id: str, conversation_id: str, db: Session = Depends(get_db)):
 def history(user_id: str, db: Session = Depends(get_db)):
     return load_user_history(db, user_id)
 
-@router.delete('/delete_conversation')
+@router.delete('/delete_conversation', dependencies=[_require_full])
 def delete_conversation_endpoint(user_id: str, conversation_id: str, db: Session = Depends(get_db)):
     return delete_conversation(user_id, db, conversation_id)
 
