@@ -85,54 +85,15 @@
                 </button>
             </nav>
 
-            <div id="tabPanelChat" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnChat">
-              <div class="app-body">
-                <aside class="sidebar">
-                    <label class="search-box" for="conversationSearch">
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.75"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <circle cx="11" cy="11" r="7"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input
-                            id="conversationSearch"
-                            type="search"
-                            placeholder="Search conversations"
-                        />
-                    </label>
-
-                    <div id="conversationList" class="conversation-list"></div>
-
-                    <div class="agent-card sidebar-note">
-                        <h4>Project</h4>
-                        <p>
-                            Built on FastAPI, CrewAI, and a SQLite-backed
-                            research workflow.
-                        </p>
-                    </div>
-                </aside>
-
-                <main class="main-panel">
-                    <div class="panel-heading">
-                        <div>
-                            <h1>Research assistant</h1>
-                            <p>
-                                Ask questions and follow the agent workflow in
-                                real time.
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            id="traceToggle"
-                            class="trace-toggle-btn"
-                            title="See what each agent decided this conversation"
-                        >
+            <div
+                id="tabPanelChat"
+                class="tab-panel"
+                role="tabpanel"
+                aria-labelledby="tabBtnChat"
+            >
+                <div class="app-body">
+                    <aside class="sidebar">
+                        <label class="search-box" for="conversationSearch">
                             <svg
                                 viewBox="0 0 24 24"
                                 fill="none"
@@ -141,79 +102,174 @@
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
                             >
-                                <path d="M9 4h11v16H9z"></path>
-                                <path d="M4 8h5M4 12h5M4 16h5"></path>
+                                <circle cx="11" cy="11" r="7"></circle>
+                                <line
+                                    x1="21"
+                                    y1="21"
+                                    x2="16.65"
+                                    y2="16.65"
+                                ></line>
                             </svg>
-                            View agent trace
-                        </button>
-                    </div>
+                            <input
+                                id="conversationSearch"
+                                type="search"
+                                placeholder="Search conversations"
+                            />
+                        </label>
 
-                    <div class="content-grid">
-                        <section class="chat-column">
-                            <div id="chatWindow" class="chat-window"></div>
+                        <div
+                            id="conversationList"
+                            class="conversation-list"
+                        ></div>
 
-                            <div class="composer-panel">
-                                <div
-                                    id="fileList"
-                                    class="file-list hidden"
-                                ></div>
-                                <div class="composer-row">
-                                    <label
-                                        class="upload-btn"
-                                        for="fileInput"
-                                        title="Upload a file"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.75"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
+                        <div class="agent-card sidebar-note">
+                            <h4>Project</h4>
+                            <p>
+                                Built on FastAPI, CrewAI, and a SQLite-backed
+                                research workflow.
+                            </p>
+                        </div>
+                    </aside>
+
+                    <main class="main-panel">
+                        <div class="panel-heading">
+                            <div>
+                                <h1>Research assistant</h1>
+                                <p>
+                                    Ask questions and follow the agent workflow
+                                    in real time.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                id="traceToggle"
+                                class="trace-toggle-btn"
+                                title="See what each agent decided this conversation"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.75"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <path d="M9 4h11v16H9z"></path>
+                                    <path d="M4 8h5M4 12h5M4 16h5"></path>
+                                </svg>
+                                View agent trace
+                            </button>
+                        </div>
+
+                        <div class="content-grid">
+                            <section class="chat-column">
+                                <div id="chatWindow" class="chat-window"></div>
+
+                                <div class="composer-panel">
+                                    <div
+                                        id="fileList"
+                                        class="file-list hidden"
+                                    ></div>
+                                    <div class="composer-row">
+                                        <label
+                                            class="upload-btn"
+                                            for="fileInput"
+                                            title="Upload a file"
                                         >
-                                            <path
-                                                d="M21.44 11.05 12.25 20.24a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.19 5.19l-9.2 9.19a1.83 1.83 0 0 1-2.59-2.59l8.49-8.48"
-                                            ></path>
-                                        </svg>
-                                    </label>
-                                    <input
-                                        id="fileInput"
-                                        type="file"
-                                        class="hidden"
-                                    />
-                                    <textarea
-                                        id="messageInput"
-                                        placeholder="Ask about your data, schema, or research question..."
-                                    ></textarea>
-                                    <button
-                                        class="stop-btn hidden"
-                                        id="stopBtn"
-                                        title="Stop generation"
-                                        type="button"
-                                    >
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.75"
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="1.75"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                            >
+                                                <path
+                                                    d="M21.44 11.05 12.25 20.24a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.19 5.19l-9.2 9.19a1.83 1.83 0 0 1-2.59-2.59l8.49-8.48"
+                                                ></path>
+                                            </svg>
+                                        </label>
+                                        <input
+                                            id="fileInput"
+                                            type="file"
+                                            class="hidden"
+                                        />
+                                        <textarea
+                                            id="messageInput"
+                                            placeholder="Ask about your data, schema, or research question..."
+                                        ></textarea>
+                                        <button
+                                            class="stop-btn hidden"
+                                            id="stopBtn"
+                                            title="Stop generation"
+                                            type="button"
                                         >
-                                            <rect
-                                                x="6"
-                                                y="6"
-                                                width="12"
-                                                height="12"
-                                                rx="1.5"
-                                            ></rect>
-                                        </svg>
-                                    </button>
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="1.75"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                            >
+                                                <rect
+                                                    x="6"
+                                                    y="6"
+                                                    width="12"
+                                                    height="12"
+                                                    rx="1.5"
+                                                ></rect>
+                                            </svg>
+                                        </button>
+                                        <button
+                                            class="send-btn"
+                                            id="sendBtn"
+                                            type="button"
+                                        >
+                                            Send
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                stroke-width="1.75"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                            >
+                                                <line
+                                                    x1="5"
+                                                    y1="12"
+                                                    x2="19"
+                                                    y2="12"
+                                                ></line>
+                                                <polyline
+                                                    points="13 6 19 12 13 18"
+                                                ></polyline>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="composer-hint">
+                                        Press Enter to send • Shift+Enter for a
+                                        new line
+                                    </div>
+                                </div>
+                            </section>
+
+                            <aside
+                                id="filePane"
+                                class="file-pane"
+                                aria-hidden="true"
+                            >
+                                <div class="file-pane-top">
+                                    <div
+                                        id="filePaneTabs"
+                                        class="file-pane-tabs"
+                                    ></div>
                                     <button
-                                        class="send-btn"
-                                        id="sendBtn"
                                         type="button"
+                                        id="filePaneClose"
+                                        class="file-pane-close"
+                                        aria-label="Close file view"
                                     >
-                                        Send
                                         <svg
                                             viewBox="0 0 24 24"
                                             fill="none"
@@ -223,92 +279,114 @@
                                             stroke-linejoin="round"
                                         >
                                             <line
-                                                x1="5"
-                                                y1="12"
-                                                x2="19"
-                                                y2="12"
+                                                x1="6"
+                                                y1="6"
+                                                x2="18"
+                                                y2="18"
                                             ></line>
-                                            <polyline
-                                                points="13 6 19 12 13 18"
-                                            ></polyline>
+                                            <line
+                                                x1="18"
+                                                y1="6"
+                                                x2="6"
+                                                y2="18"
+                                            ></line>
                                         </svg>
                                     </button>
                                 </div>
-                                <div class="composer-hint">
-                                    Press Enter to send • Shift+Enter for a new
-                                    line
-                                </div>
-                            </div>
-                        </section>
-
-                        <aside id="filePane" class="file-pane" aria-hidden="true">
-                            <div class="file-pane-top">
-                                <div id="filePaneTabs" class="file-pane-tabs"></div>
-                                <button
-                                    type="button"
-                                    id="filePaneClose"
-                                    class="file-pane-close"
-                                    aria-label="Close file view"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.75"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
+                                <div class="file-pane-filename-row">
+                                    <div
+                                        id="filePaneFilename"
+                                        class="file-pane-filename"
+                                    ></div>
+                                    <div
+                                        class="code-block-actions file-pane-actions"
                                     >
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="file-pane-filename-row">
-                                <div id="filePaneFilename" class="file-pane-filename"></div>
-                                <div class="code-block-actions file-pane-actions">
-                                    <button type="button" id="filePaneCopy" class="code-block-btn code-block-copy" aria-label="Copy file content">Copy</button>
-                                    <button type="button" id="filePaneDownload" class="code-block-btn" aria-label="Download file">Download</button>
+                                        <button
+                                            type="button"
+                                            id="filePaneCopy"
+                                            class="code-block-btn code-block-copy"
+                                            aria-label="Copy file content"
+                                        >
+                                            Copy
+                                        </button>
+                                        <button
+                                            type="button"
+                                            id="filePaneDownload"
+                                            class="code-block-btn"
+                                            aria-label="Download file"
+                                        >
+                                            Download
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                            <pre class="file-pane-body"><code id="filePaneCode"></code></pre>
-                        </aside>
+                                <pre
+                                    class="file-pane-body"
+                                ><code id="filePaneCode"></code></pre>
+                            </aside>
 
-                        <aside id="tracePane" class="trace-pane" aria-hidden="true">
-                            <div class="trace-pane-top">
-                                <h3>Agent trace</h3>
-                                <button
-                                    type="button"
-                                    id="tracePaneClose"
-                                    class="file-pane-close"
-                                    aria-label="Close agent trace"
-                                >
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="1.75"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
+                            <aside
+                                id="tracePane"
+                                class="trace-pane"
+                                aria-hidden="true"
+                            >
+                                <div class="trace-pane-top">
+                                    <h3>Agent trace</h3>
+                                    <button
+                                        type="button"
+                                        id="tracePaneClose"
+                                        class="file-pane-close"
+                                        aria-label="Close agent trace"
                                     >
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div id="tracePaneBody" class="trace-pane-body"></div>
-                        </aside>
-                    </div>
-                </main>
-              </div>
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="1.75"
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                        >
+                                            <line
+                                                x1="6"
+                                                y1="6"
+                                                x2="18"
+                                                y2="18"
+                                            ></line>
+                                            <line
+                                                x1="18"
+                                                y1="6"
+                                                x2="6"
+                                                y2="18"
+                                            ></line>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div
+                                    id="tracePaneBody"
+                                    class="trace-pane-body"
+                                ></div>
+                            </aside>
+                        </div>
+                    </main>
+                </div>
             </div>
 
-            <div id="tabPanelAbout" class="tab-panel hidden" role="tabpanel" aria-labelledby="tabBtnAbout">
+            <div
+                id="tabPanelAbout"
+                class="tab-panel hidden"
+                role="tabpanel"
+                aria-labelledby="tabBtnAbout"
+            >
                 <div class="readme-pane">
                     <div id="aboutContent" class="readme-content">Loading…</div>
                 </div>
             </div>
 
-            <div id="tabPanelRetro" class="tab-panel hidden" role="tabpanel" aria-labelledby="tabBtnRetro">
+            <div
+                id="tabPanelRetro"
+                class="tab-panel hidden"
+                role="tabpanel"
+                aria-labelledby="tabBtnRetro"
+            >
                 <div class="readme-pane">
                     <div id="retroContent" class="readme-content">Loading…</div>
                 </div>
@@ -375,18 +453,23 @@
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                     </svg>
                 </button>
-                <h3 id="welcomeModalTitle">Hi, I'm Amper 👋</h3>
+                <h3 id="welcomeModalTitle">Hi, I'm Coddy 👋</h3>
                 <p id="welcomeModalMessage">
-                    Ask me to build or fix a feature and I'll turn it into a step-by-step
-                    plan you can review before any code gets written -- then I implement it
-                    and check my own work, retrying automatically if something's off. You
-                    can also ask a quick coding question, or just what I can do, with no
-                    plan needed. I stick to coding/planning topics for this app, so
-                    general-knowledge questions (weather, trivia, and the like) are outside
-                    what I can help with.
+                    Ask me to build or fix a feature and I'll turn it into a
+                    step-by-step plan you can review before any code gets
+                    written -- then I implement it and check my own work,
+                    retrying automatically if something's off. You can also ask
+                    a quick coding question, or just what I can do, with no plan
+                    needed. I stick to coding/planning topics for this app, so
+                    general-knowledge questions (weather, trivia, and the like)
+                    are outside what I can help with.
                 </p>
                 <div class="modal-actions">
-                    <button type="button" class="modal-confirm modal-ok" id="welcomeModalOk">
+                    <button
+                        type="button"
+                        class="modal-confirm modal-ok"
+                        id="welcomeModalOk"
+                    >
                         Got it
                     </button>
                 </div>
