@@ -126,6 +126,21 @@ svg {
     align-items: center;
     gap: 24px;
 }
+/* Back to carlosnakid.com -- sits to the left of the "Coddy" brand, same
+   pattern as static/projects.html's .back-link. */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 180ms ease;
+}
+.back-link:hover {
+    color: var(--text);
+}
 .brand {
     display: flex;
     align-items: center;
@@ -1595,6 +1610,9 @@ svg {
         gap: 12px;
     }
     .brand-name {
+        display: none;
+    }
+    .back-link-text {
         display: none;
     }
     .nav-link span {
