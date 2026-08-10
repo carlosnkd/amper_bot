@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Carlos Nakid — AI &amp; Agentic Systems Engineer</title>
+        <meta
+            name="description"
+            content="Carlos Nakid — AI &amp; Data Engineer building production-ready agentic AI systems: multi-agent architectures, RAG pipelines, and AI-powered backend services."
+        />
+        <link
+            rel="icon"
+            href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b2f5e'/%3E%3Ctext x='32' y='42' font-family='Arial,sans-serif' font-weight='700' font-size='28' fill='%23ffffff' text-anchor='middle'%3ECN%3C/text%3E%3C/svg%3E"
+        />
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+            :root {
+                color-scheme: light;
+                --bg: #f5f7fa;
+                --surface: #ffffff;
+                --surface-alt: #f1f4f8;
+                --border: #e2e7ef;
+                --border-strong: #d3dae5;
+                --text: #101828;
+                --muted: #64748b;
+                --accent: #0b2f5e;
+                --accent-hover: #0f3d78;
+                --accent-soft: rgba(11, 47, 94, 0.08);
+                --accent-soft-strong: rgba(11, 47, 94, 0.14);
+                --on-accent: #ffffff;
+                --shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+                --shadow-hover: 0 10px 24px rgba(16, 24, 40, 0.1);
+                --radius-sm: 8px;
+                --radius-md: 10px;
+                --radius-lg: 14px;
+            }
+            :root.dark {
+                color-scheme: dark;
+                --bg: #0c1220;
+                --surface: #141c2e;
+                --surface-alt: #182238;
+                --border: rgba(255, 255, 255, 0.09);
+                --border-strong: rgba(255, 255, 255, 0.16);
+                --text: #eef1f6;
+                --muted: #93a0b8;
+                --accent: #4d7fc4;
+                --accent-hover: #6293d1;
+                --accent-soft: rgba(77, 127, 196, 0.16);
+                --accent-soft-strong: rgba(77, 127, 196, 0.26);
+                --on-accent: #0b1220;
+                --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+                --shadow-hover: 0 14px 28px rgba(0, 0, 0, 0.4);
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                margin: 0;
+                min-height: 100%;
+                font-family:
+                    'Inter',
+                    ui-sans-serif,
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    'Segoe UI',
+                    sans-serif;
+                background: var(--bg);
+                color: var(--text);
+            }
+            body {
+                transition:
+                    background 220ms ease,
+                    color 220ms ease;
+            }
+            a {
+                color: inherit;
+            }
+            button {
+                font: inherit;
+                color: inherit;
+                border: 0;
+                background: none;
+                cursor: pointer;
+            }
+            button:focus-visible,
+            a:focus-visible,
+            .flip-card:focus-visible {
+                outline: 2px solid var(--accent);
+                outline-offset: 2px;
+            }
+            svg {
+                width: 18px;
+                height: 18px;
+                flex-shrink: 0;
+            }
+
+            /* ---------- Header ---------- */
+            .site-header {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+                background: var(--surface);
+                border-bottom: 1px solid var(--border);
+            }
+            .header-inner {
+                max-width: 1040px;
+                margin: 0 auto;
+                padding: 16px 24px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+            }
+            .brand {
+                font-weight: 800;
+                font-size: 16px;
+                letter-spacing: 0.01em;
+                text-decoration: none;
+            }
+            .header-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .icon-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 36px;
+                height: 36px;
+                border-radius: var(--radius-sm);
+                color: var(--muted);
+            }
+            .icon-btn:hover {
+                background: var(--surface-alt);
+                color: var(--text);
+            }
+
+            /* ---------- Layout ---------- */
+            main {
+                max-width: 1040px;
+                margin: 0 auto;
+                padding: 0 24px;
+            }
+
+            /* ---------- Hero ---------- */
+            .hero {
+                padding: 72px 0 56px;
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+            .eyebrow {
+                display: inline-flex;
+                width: fit-content;
+                padding: 5px 12px;
+                border-radius: 999px;
+                background: var(--accent-soft);
+                color: var(--accent);
+                font-size: 13px;
+                font-weight: 600;
+                letter-spacing: 0.02em;
+            }
+            :root.dark .eyebrow {
+                color: #9db8e8;
+            }
+            .hero h1 {
+                margin: 0;
+                font-size: clamp(32px, 5vw, 48px);
+                font-weight: 800;
+                letter-spacing: -0.01em;
+                line-height: 1.1;
+            }
+            .hero .headline {
+                margin: 0;
+                font-size: 19px;
+                font-weight: 600;
+                color: var(--muted);
+            }
+            .hero .bio {
+                margin: 4px 0 0;
+                max-width: 660px;
+                font-size: 16px;
+                line-height: 1.65;
+                color: var(--text);
+            }
+            .skills {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: 4px;
+            }
+            .skill-chip {
+                padding: 6px 12px;
+                border-radius: 999px;
+                background: var(--surface-alt);
+                border: 1px solid var(--border);
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--muted);
+            }
+            .cta-row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 8px;
+            }
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 18px;
+                border-radius: var(--radius-md);
+                font-size: 14px;
+                font-weight: 600;
+                text-decoration: none;
+                transition:
+                    background 150ms ease,
+                    border-color 150ms ease,
+                    transform 150ms ease;
+            }
+            .btn:hover {
+                transform: translateY(-1px);
+            }
+            .btn-primary {
+                background: var(--accent);
+                color: var(--on-accent);
+            }
+            .btn-primary:hover {
+                background: var(--accent-hover);
+            }
+            .btn-secondary {
+                background: var(--surface);
+                color: var(--text);
+                border: 1px solid var(--border-strong);
+            }
+            .btn-secondary:hover {
+                background: var(--surface-alt);
+            }
+
+            /* ---------- Projects ---------- */
+            .projects {
+                padding: 16px 0 88px;
+            }
+            .section-heading {
+                margin: 0 0 6px;
+                font-size: 24px;
+                font-weight: 800;
+            }
+            .section-sub {
+                margin: 0 0 32px;
+                color: var(--muted);
+                font-size: 15px;
+            }
+            .project-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 22px;
+            }
+
+            .flip-card {
+                perspective: 1400px;
+                height: 260px;
+            }
+            .flip-card-inner {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                text-align: left;
+                transition: transform 550ms cubic-bezier(0.4, 0.2, 0.2, 1);
+                transform-style: preserve-3d;
+            }
+            .flip-card.flipped .flip-card-inner {
+                transform: rotateY(180deg);
+            }
+            .flip-face {
+                position: absolute;
+                inset: 0;
+                backface-visibility: hidden;
+                border-radius: var(--radius-lg);
+                border: 1px solid var(--border);
+                background: var(--surface);
+                box-shadow: var(--shadow);
+                padding: 22px;
+                display: flex;
+                flex-direction: column;
+            }
+            .flip-card:hover .flip-face,
+            .flip-card:focus-within .flip-face {
+                box-shadow: var(--shadow-hover);
+            }
+            .flip-card-back {
+                transform: rotateY(180deg);
+                justify-content: space-between;
+            }
+            .project-logo {
+                height: 26px;
+                width: auto;
+                object-fit: contain;
+                margin-bottom: auto;
+            }
+            .project-title {
+                margin: 0 0 6px;
+                font-size: 18px;
+                font-weight: 700;
+            }
+            .project-tagline {
+                margin: 0;
+                color: var(--muted);
+                font-size: 14px;
+                line-height: 1.5;
+            }
+            .flip-hint {
+                margin-top: auto;
+                padding-top: 10px;
+                font-size: 12px;
+                color: var(--muted);
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .project-desc {
+                margin: 0;
+                font-size: 13.5px;
+                line-height: 1.55;
+                color: var(--text);
+            }
+            .project-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                margin-top: 12px;
+                font-size: 13.5px;
+                font-weight: 700;
+                color: var(--accent);
+                text-decoration: none;
+                width: fit-content;
+            }
+            :root.dark .project-link {
+                color: #9db8e8;
+            }
+            .project-link:hover {
+                text-decoration: underline;
+            }
+
+            .flip-card.is-placeholder .flip-face {
+                background: var(--surface-alt);
+            }
+            .flip-card.is-placeholder .project-title,
+            .flip-card.is-placeholder .project-tagline {
+                color: var(--muted);
+            }
+            .badge-soon {
+                display: inline-flex;
+                width: fit-content;
+                padding: 3px 10px;
+                border-radius: 999px;
+                background: var(--surface);
+                border: 1px dashed var(--border-strong);
+                color: var(--muted);
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                text-transform: uppercase;
+                margin-bottom: 10px;
+            }
+
+            footer {
+                border-top: 1px solid var(--border);
+                padding: 24px;
+                text-align: center;
+                color: var(--muted);
+                font-size: 13px;
+            }
+
+            @media (max-width: 560px) {
+                .hero {
+                    padding: 48px 0 40px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header class="site-header">
+            <div class="header-inner">
+                <a class="brand" href="#top">Carlos Nakid</a>
+                <div class="header-actions">
+                    <a
+                        class="icon-btn"
+                        href="https://github.com/carlosnkd"
+                        target="_blank"
+                        rel="noopener"
+                        aria-label="GitHub"
+                    >
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 .5C5.65.5.5 5.66.5 12.03c0 5.1 3.29 9.42 7.86 10.95.57.1.78-.25.78-.55 0-.27-.01-1.16-.02-2.11-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 2.9-.39c.98 0 1.97.13 2.9.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.4-5.27 5.69.42.36.78 1.07.78 2.16 0 1.56-.01 2.82-.01 3.2 0 .31.21.66.79.55A10.53 10.53 0 0 0 23.5 12.03C23.5 5.66 18.35.5 12 .5Z"
+                            />
+                        </svg>
+                    </a>
+                    <button
+                        class="icon-btn"
+                        id="themeToggle"
+                        type="button"
+                        aria-label="Toggle theme"
+                    ></button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="hero" id="top">
+                <span class="eyebrow">AI &amp; Agentic Systems Engineer</span>
+                <h1>Carlos Nakid</h1>
+                <p class="headline">
+                    Building production-ready agentic AI systems.
+                </p>
+                <p class="bio">
+                    I'm an AI &amp; Data Engineer focused on building
+                    production-ready AI systems, with experience in Agentic
+                    AI, LLMs, RAG, and conversational AI. I design multi-agent
+                    architectures, semantic retrieval pipelines, and
+                    AI-powered backend services using technologies such as
+                    Gemini, LangChain, CrewAI, FastAPI, and Google Cloud. My
+                    experience spans the full lifecycle of AI solutions, from
+                    data pipelines and backend development to deployment,
+                    evaluation, and production reliability.
+                </p>
+                <div class="skills" aria-label="Skills">
+                    <span class="skill-chip">Python</span>
+                    <span class="skill-chip">FastAPI</span>
+                    <span class="skill-chip">CrewAI</span>
+                    <span class="skill-chip">LangChain</span>
+                    <span class="skill-chip">Multi-Agent Systems</span>
+                    <span class="skill-chip">RAG / Semantic Retrieval</span>
+                    <span class="skill-chip">Gemini</span>
+                    <span class="skill-chip">Anthropic Claude</span>
+                    <span class="skill-chip">Google Cloud / Vertex AI</span>
+                    <span class="skill-chip">SQLAlchemy</span>
+                    <span class="skill-chip">Vector DBs (Chroma / LanceDB)</span>
+                </div>
+                <div class="cta-row">
+                    <a class="btn btn-primary" href="mailto:carlos.nakidg@gmail.com">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16v16H4z" />
+                            <path d="m22 6-10 7L2 6" />
+                        </svg>
+                        Email me
+                    </a>
+                    <a class="btn btn-secondary" href="https://github.com/carlosnkd" target="_blank" rel="noopener">
+                        GitHub
+                    </a>
+                    <a class="btn btn-secondary" href="/resume.pdf" download="CarlosNakidResume.pdf">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3v12" />
+                            <path d="m7 10 5 5 5-5" />
+                            <path d="M5 21h14" />
+                        </svg>
+                        Resume (PDF)
+                    </a>
+                </div>
+            </section>
+
+            <section class="projects" id="projects">
+                <h2 class="section-heading">Projects</h2>
+                <p class="section-sub">A few things I've built. Click a card for more.</p>
+
+                <div class="project-grid">
+                    <!-- Card 1: Coddy (this app / amper_bot) -->
+                    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Coddy project card, press to flip">
+                        <div class="flip-card-inner">
+                            <div class="flip-face flip-card-front">
+                                <img class="project-logo" src="/coddy/static/images/ammper-logo.png" alt="" />
+                                <h3 class="project-title">Coddy</h3>
+                                <p class="project-tagline">Turns a plain-English feature ticket into planned, implemented, and reviewed code.</p>
+                                <span class="flip-hint">Tap for details ↻</span>
+                            </div>
+                            <div class="flip-face flip-card-back">
+                                <div>
+                                    <h3 class="project-title">Coddy</h3>
+                                    <p class="project-desc">
+                                        A chat assistant built on CrewAI, FastAPI, and Anthropic's
+                                        Claude models. A three-agent pipeline — Planner, Coder,
+                                        Reviewer — turns a short feature ticket into an editable
+                                        plan, a real implementation, and a pass/fail review that
+                                        sends the work back for another attempt when it fails.
+                                        Chit-chat and one-off snippets are answered directly,
+                                        skipping the pipeline entirely.
+                                    </p>
+                                </div>
+                                <a class="project-link" href="/coddy">
+                                    View project
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M5 12h14" />
+                                        <path d="m12 5 7 7-7 7" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Date Invitation -->
+                    <div class="flip-card" tabindex="0" role="button" aria-pressed="false" aria-label="Date Invitation project card, press to flip">
+                        <div class="flip-card-inner">
+                            <div class="flip-face flip-card-front">
+                                <h3 class="project-title">Date Invitation</h3>
+                                <p class="project-tagline">A web app for creating and sending custom date invitations.</p>
+                                <span class="flip-hint">Tap for details ↻</span>
+                            </div>
+                            <div class="flip-face flip-card-back">
+                                <div>
+                                    <h3 class="project-title">Date Invitation</h3>
+                                    <p class="project-desc">
+                                        A small web app for putting together and sharing a
+                                        personalized date invitation. Source available on GitHub.
+                                    </p>
+                                </div>
+                                <a class="project-link" href="https://github.com/carlosnkd/date-invitation" target="_blank" rel="noopener">
+                                    View on GitHub
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M5 12h14" />
+                                        <path d="m12 5 7 7-7 7" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Coming soon placeholder -->
+                    <div class="flip-card is-placeholder" tabindex="0" role="button" aria-pressed="false" aria-label="More projects coming soon, press to flip">
+                        <div class="flip-card-inner">
+                            <div class="flip-face flip-card-front">
+                                <span class="badge-soon">Coming soon</span>
+                                <h3 class="project-title">Next project</h3>
+                                <p class="project-tagline">Something new is in the works.</p>
+                                <span class="flip-hint">Tap for details ↻</span>
+                            </div>
+                            <div class="flip-face flip-card-back">
+                                <div>
+                                    <h3 class="project-title">Next project</h3>
+                                    <p class="project-desc">
+                                        Not published yet — check back soon, or see everything
+                                        else on GitHub in the meantime.
+                                    </p>
+                                </div>
+                                <a class="project-link" href="https://github.com/carlosnkd" target="_blank" rel="noopener">
+                                    View GitHub
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M5 12h14" />
+                                        <path d="m12 5 7 7-7 7" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            © <span id="year"></span> Carlos Nakid. Built with FastAPI.
+        </footer>
+
+        <script>
+            const ICONS = {
+                sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
+                moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>',
+            };
+
+            // Shares the 'agent-theme' localStorage key with the Coddy app (static/js/app.js)
+            // so a visitor's light/dark preference carries over between the two pages.
+            const themeBtn = document.getElementById('themeToggle');
+            let theme = localStorage.getItem('agent-theme') || 'light';
+
+            function applyTheme() {
+                document.documentElement.classList.toggle('dark', theme === 'dark');
+                themeBtn.innerHTML = theme === 'light' ? ICONS.moon : ICONS.sun;
+                themeBtn.setAttribute(
+                    'aria-label',
+                    theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme',
+                );
+            }
+            themeBtn.addEventListener('click', () => {
+                theme = theme === 'dark' ? 'light' : 'dark';
+                localStorage.setItem('agent-theme', theme);
+                applyTheme();
+            });
+            applyTheme();
+
+            // Flip cards: click/tap anywhere on the card flips it, except a tap that lands
+            // on the "View project" link -- that should navigate, not flip. Keyboard users
+            // get the same toggle on Enter/Space via the card's own role="button".
+            document.querySelectorAll('.flip-card').forEach((card) => {
+                function toggle() {
+                    const flipped = card.classList.toggle('flipped');
+                    card.setAttribute('aria-pressed', String(flipped));
+                }
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('a')) return;
+                    toggle();
+                });
+                card.addEventListener('keydown', (e) => {
+                    if (e.target !== card) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggle();
+                    }
+                });
+            });
+
+            document.getElementById('year').textContent = new Date().getFullYear();
+        </script>
+    </body>
+</html>

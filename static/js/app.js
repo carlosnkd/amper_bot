@@ -1,4 +1,6 @@
-const API_BASE = '';
+// Amper Bot's UI/API now live under /coddy (see backend/app.py) since the domain
+// root is the carlosnakid.com portfolio landing page instead of this app.
+const API_BASE = '/coddy';
 // No auth/session layer exists yet, so every request is scoped to this single
 // hardcoded user. Replace with a real logged-in user id once auth lands.
 const USER_ID = '1';
