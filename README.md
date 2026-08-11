@@ -276,8 +276,14 @@ No manual database setup is needed — `backend/app.py`'s startup hook calls
 ## Usage
 
 ```bash
-uvicorn backend.app:app --reload
+uvicorn backend.app:app --reload --reload-exclude "bot_env/*"
 ```
+
+`bot_env/` (the venv) lives inside the project root, so bare `--reload` watches its
+site-packages too — installing/updating a dependency (e.g. pandas) touches thousands of
+files there and triggers a reload storm, which on Windows can interrupt a worker mid-startup
+and print a spurious `KeyboardInterrupt` traceback. `--reload-exclude` keeps the watch to
+actual source changes.
 
 This serves the chat UI at `http://localhost:8000/` and the FastAPI docs (Swagger UI) at
 `http://localhost:8000/docs`. Opening the page always starts on a fresh, empty conversation —
