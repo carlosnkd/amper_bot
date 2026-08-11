@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Datara</title>
+        <link rel="stylesheet" href="/yt-agents/static/css/app.css" />
+    </head>
+    <body>
+        <div class="app-shell">
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <div>
+                        <h2>Datara</h2>
+                        <p>Conversational research workspace</p>
+                    </div>
+                    <div class="sidebar-actions">
+                        <button class="primary-btn" id="newChatBtn">
+                            ＋ New chat
+                        </button>
+                    </div>
+                </div>
+
+                <label class="search-box" for="conversationSearch">
+                    <span>🔎</span>
+                    <input
+                        id="conversationSearch"
+                        type="search"
+                        placeholder="Search conversations"
+                    />
+                </label>
+
+                <div id="conversationList" class="conversation-list"></div>
+
+                <div class="agent-card">
+                    <h4>Project</h4>
+                    <p>
+                        Built on FastAPI, CrewAI, and a SQLite-backed research
+                        workflow.
+                    </p>
+                </div>
+            </aside>
+
+            <main class="main-panel">
+                <header class="topbar">
+                    <div>
+                        <h1>Research assistant</h1>
+                        <p>
+                            Ask questions and follow the agent workflow in real
+                            time.
+                        </p>
+                    </div>
+                    <div class="topbar-actions">
+                        <button class="icon-btn" id="panelToggle">
+                            Hide agent trace
+                        </button>
+                        <button class="icon-btn" id="themeToggle">
+                            🌙 Dark
+                        </button>
+                    </div>
+                </header>
+
+                <div class="content-grid">
+                    <section class="chat-column">
+                        <div id="chatWindow" class="chat-window"></div>
+
+                        <div class="composer-panel">
+                            <div id="fileList" class="file-list hidden"></div>
+                            <div class="composer-row">
+                                <label
+                                    class="upload-btn"
+                                    for="fileInput"
+                                    title="Upload a file"
+                                    >📎</label
+                                >
+                                <input
+                                    id="fileInput"
+                                    type="file"
+                                    class="hidden"
+                                />
+                                <textarea
+                                    id="messageInput"
+                                    placeholder="Ask about your data, schema, or research question..."
+                                ></textarea>
+                                <button
+                                    class="stop-btn hidden"
+                                    id="stopBtn"
+                                    title="Stop generation"
+                                >
+                                    ■
+                                </button>
+                                <button class="send-btn" id="sendBtn">
+                                    Send
+                                </button>
+                            </div>
+                            <div class="composer-hint">
+                                Press Enter to send • Shift+Enter for a new line
+                            </div>
+                        </div>
+                    </section>
+
+                    <aside id="agentPanel" class="agent-panel">
+                        <div class="agent-header">
+                            <h3>Agent trace</h3>
+                            <span class="muted">Live</span>
+                        </div>
+                        <div class="agent-body">
+                            <div id="agentStatus" class="agent-card">
+                                <h4>Active agent</h4>
+                                <p>Intent Classifier</p>
+                            </div>
+                            <div id="taskStatus" class="agent-card">
+                                <h4>Current task</h4>
+                                <p>
+                                    Classifying intent and routing the request
+                                </p>
+                            </div>
+                            <div id="toolStatus" class="agent-card">
+                                <h4>Tools</h4>
+                                <p>Schema inspection • Query planning</p>
+                            </div>
+                            <div id="sqlStatus" class="agent-card">
+                                <h4>SQL status</h4>
+                                <p>Preparing execution plan</p>
+                            </div>
+                            <div class="agent-card">
+                                <h4>Timeline</h4>
+                                <ul id="timeline" class="agent-timeline">
+                                    <li class="done">
+                                        <span class="dot"></span
+                                        ><span>Workflow initialized</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </main>
+        </div>
+
+        <div id="toastContainer" class="toast-container"></div>
+
+        <div id="welcomeOverlay" class="modal-overlay hidden">
+            <div
+                class="modal-box"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="welcomeTitle"
+            >
+                <h3 id="welcomeTitle">Welcome to Datara</h3>
+                <p>
+                    Datara turns plain-English questions into answers from your
+                    database. Behind the scenes, a crew of AI agents classifies
+                    your intent, inspects the schema, builds and validates a
+                    query, runs it, and summarizes the results for you.
+                </p>
+                <!-- <p>
+                    Watch every step unfold live in the
+                    <strong>Agent trace</strong> panel, revisit past
+                    conversations from the sidebar, and attach files to give the
+                    agents extra context.
+                </p> -->
+                <div class="modal-actions">
+                    <button class="primary-btn" id="welcomeOkBtn">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <script src="/yt-agents/static/js/app.js"></script>
+    </body>
+</html>

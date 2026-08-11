@@ -1,0 +1,1 @@
+SELECT AVG(answer_rate) FROM call_center_data WHERE incoming_calls < 200;

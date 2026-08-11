@@ -1,0 +1,35 @@
+Table: call_center_data
+    - id: INTEGER
+    - incoming_calls: INTEGER
+    - answered_calls: INTEGER
+    - abandoned_calls: INTEGER
+    - answer_rate: FLOAT
+    - service_level_20s: FLOAT
+    - answer_speed_avg: INTEGER
+    - talk_duration_avg: INTEGER
+    - waiting_time_avg: INTEGER
+Table: users
+    - id: INTEGER
+    - username: VARCHAR
+    - created_at: DATETIME
+Table: messages
+    - id: INTEGER
+    - user_id: INTEGER
+    - conversation_id: VARCHAR
+    - messages: JSON
+    - summary: VARCHAR
+    - created_at: DATETIME
+Table: agents
+    - id: INTEGER
+    - name: VARCHAR
+    - team_id: INTEGER
+    - hire_date: DATE
+Table: teams
+    - id: INTEGER
+    - name: VARCHAR
+    - department: VARCHAR
+Table: calls
+    - id: INTEGER
+    - agent_id: INTEGER
+    - duration_seconds: INTEGER
+    - created_at: DATETIME

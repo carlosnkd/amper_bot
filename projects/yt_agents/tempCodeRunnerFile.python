@@ -1,0 +1,7 @@
+from backend.main import get_db
+import pandas as pd
+
+
+db = get_db()
+tables = db.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()
+print(tables)

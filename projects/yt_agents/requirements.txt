@@ -1,0 +1,12 @@
+crewai
+langchain_community 
+crewai[tools]
+python-dotenv
+langchain_google_genai
+load_dotenv
+pandas
+fastapi 
+uvicorn[standard]
+sqlalchemy
+aiocache
+vertexai
