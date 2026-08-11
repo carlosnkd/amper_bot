@@ -1,9 +1,9 @@
 """
-Password-gate session helpers, shared by backend/app.py (Coddy + Date
-Invitation entry routes), backend/api/routes.py (Coddy's API), and
-date_invitation/app.py (its /submit route).
+Password-gate session helpers, shared by backend/app.py (Coddy + yt_agents
+entry routes), backend/api/routes.py (Coddy's API), and
+projects/yt_agents/yt_backend/api/routes.py (yt_agents' API).
 
-Two access levels per gated project ("coddy", "date_invitation"):
+Two access levels per gated project ("coddy", "yt_agents"):
   - "full"  -- granted by POST .../unlock after the correct password (see
     project_password.json / check_password()). Full use of the project.
   - "guest" -- granted by GET .../guest, no password required (the "Request a
@@ -11,8 +11,8 @@ Two access levels per gated project ("coddy", "date_invitation"):
     -- which also opens a WhatsApp chat to the owner asking for the real
     one). Guests can look around but not mutate anything; which routes count
     as "mutating" is decided per project via require_full()/require_any()
-    below (Coddy: backend/api/routes.py: Date Invitation:
-    date_invitation/app.py's before_request guard).
+    below (Coddy: backend/api/routes.py; yt_agents:
+    projects/yt_agents/yt_backend/api/routes.py).
 
 Both levels live in a signed (HS256/JWT), project-scoped, HttpOnly session
 cookie -- not a server-side session store, since there's nothing worth

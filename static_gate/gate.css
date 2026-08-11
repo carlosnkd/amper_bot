@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
- * Password-gate overlay, shared by /coddy and /date-invitation.
+ * Password-gate overlay, shared by /coddy and /yt-agents.
  *
  * Injected (via backend/access.py's inject_gate()) into the project's already-
  * rendered page rather than shipped as its own page, so the real UI sits

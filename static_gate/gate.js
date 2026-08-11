@@ -1,5 +1,5 @@
 /**
- * Password-gate overlay behavior, shared by /coddy and /date-invitation.
+ * Password-gate overlay behavior, shared by /coddy and /yt-agents.
  *
  * Driven entirely by a `window.__GATE__` config object the server injects
  * (see backend/access.py's inject_gate()) into the page ahead of this script:
