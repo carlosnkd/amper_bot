@@ -1,0 +1,3 @@
+[submodule "projects/yt_agents"]
+	path = projects/yt_agents
+	url = https://github.com/carlosnkd/yt_agents.git

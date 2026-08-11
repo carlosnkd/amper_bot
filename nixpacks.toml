@@ -1,0 +1,7 @@
+# Railway's default build doesn't fetch git submodules, but projects/yt_agents
+# is one (see .gitmodules) -- backend/app.py imports from it at startup, so it
+# has to be present before the app boots. Pull it in during Nixpacks' setup
+# phase, before the Python install/build phases run.
+[phases.setup]
+nixPkgs = ["git"]
+cmds = ["git submodule update --init --recursive"]
