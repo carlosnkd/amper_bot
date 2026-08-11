@@ -254,6 +254,13 @@
                 line-height: 1.55;
                 color: var(--text);
             }
+            .project-meta {
+                margin: 10px 0 0;
+                font-size: 12px;
+                line-height: 1.5;
+                font-style: italic;
+                color: var(--muted);
+            }
             .project-link {
                 display: inline-flex;
                 align-items: center;
@@ -338,13 +345,17 @@
                     A few things I've built. Click a card for more.
                 </p>
                 <p class="arch-note">
-                    Each project below is its own independent app — its own
-                    git repo, its own backend, built and versioned on its
-                    own — rather than one monolith. They're mounted together
-                    behind a single server so they can share this landing
-                    page, domain, and password gate, which is why browsing
-                    between them feels seamless even though nothing about
-                    how they're built is actually shared.
+                    These aren't one monolith pretending to be several
+                    projects. Coddy lives directly in this site's own repo;
+                    Yt Agents started life as its own independent git repo
+                    and is vendored straight into this one so it can build
+                    and deploy alongside it. Either way, each keeps its own
+                    backend and is developed on its own — they're just
+                    mounted together behind a single server so they can
+                    share this landing page, domain, and password gate,
+                    which is why browsing between them feels seamless even
+                    though nothing about how they're built is actually
+                    shared.
                 </p>
 
                 <div class="project-grid">
@@ -389,6 +400,12 @@
                                         Chit-chat and one-off snippets skip the
                                         pipeline entirely and get answered
                                         directly.
+                                    </p>
+                                    <p class="project-meta">
+                                        Lives directly in this site's own
+                                        repo — it isn't a separate project
+                                        stitched in, it's the app this page
+                                        is part of.
                                     </p>
                                 </div>
                                 <a class="project-link" href="/coddy">
@@ -436,6 +453,11 @@
                                         an intent classifier, query builder, and
                                         research agent work together to answer
                                         questions and summarize the results.
+                                    </p>
+                                    <p class="project-meta">
+                                        Developed in its own git repo,
+                                        vendored into this site's codebase so
+                                        it deploys as part of the same app.
                                     </p>
                                 </div>
                                 <a
