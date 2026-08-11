@@ -7,14 +7,16 @@ from backend.main import init_db
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
-# yt_agents (github.com/carlosnkd/yt_agents) lives in its own git repo, nested under
-# projects/yt_agents rather than installed as a package -- so its root goes on sys.path
-# here (like this app's own repo root is on sys.path for "backend"/"agents" to resolve)
-# before importing it, letting its internal absolute imports (`from yt_backend...`,
+# yt_agents (github.com/carlosnkd/yt_agents) started life as a separate git repo and is
+# vendored in under projects/yt_agents as plain tracked files (not a git submodule --
+# Railway's builder uploads a source tarball with no .git present, so submodules can't
+# resolve there) rather than installed as a package -- so its root goes on sys.path here
+# (like this app's own repo root is on sys.path for "backend"/"agents" to resolve) before
+# importing it, letting its internal absolute imports (`from yt_backend...`,
 # `from research_agents...`) resolve as top-level packages found there. Its own backend/
-# and agents/ packages were renamed to yt_backend/ and research_agents/ (see that repo's
-# git history) specifically so they don't collide with this app's own same-named
-# top-level packages once both are imported into the same process.
+# and agents/ packages were renamed to yt_backend/ and research_agents/ specifically so
+# they don't collide with this app's own same-named top-level packages once both are
+# imported into the same process.
 YT_AGENTS_ROOT = Path(__file__).resolve().parent.parent / "projects" / "yt_agents"
 if str(YT_AGENTS_ROOT) not in sys.path:
     sys.path.insert(0, str(YT_AGENTS_ROOT))
