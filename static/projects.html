@@ -100,7 +100,7 @@
                 border-bottom: 1px solid var(--border);
             }
             .header-inner {
-                max-width: 1040px;
+                width: 100%;
                 margin: 0 auto;
                 padding: 16px 24px;
                 display: flex;
@@ -147,11 +147,15 @@
 
             /* ---------- Layout ---------- */
             main {
-                max-width: 1040px;
+                max-width: 1200px;
                 margin: 0 auto;
                 padding: 0 24px;
             }
             .projects {
+                min-height: calc(100vh - 69px);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
                 padding: 48px 0 88px;
             }
             .section-heading {
@@ -166,13 +170,13 @@
             }
             .project-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
                 gap: 22px;
             }
 
             .flip-card {
                 perspective: 1400px;
-                height: 260px;
+                height: 500px;
             }
             .flip-card-inner {
                 position: relative;
@@ -193,9 +197,10 @@
                 border: 1px solid var(--border);
                 background: var(--surface);
                 box-shadow: var(--shadow);
-                padding: 22px;
+                padding: 24px;
                 display: flex;
                 flex-direction: column;
+                gap: 10px;
             }
             .flip-card:hover .flip-face,
             .flip-card:focus-within .flip-face {
@@ -203,7 +208,18 @@
             }
             .flip-card-back {
                 transform: rotateY(180deg);
-                justify-content: space-between;
+                overflow: hidden;
+            }
+            .flip-card-back > div {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                flex: 1 1 auto;
+                min-height: 0;
+                overflow-y: auto;
+            }
+            .flip-card-back > .project-link {
+                flex-shrink: 0;
             }
             .project-logo {
                 height: 26px;
@@ -222,6 +238,20 @@
                 font-size: 14px;
                 line-height: 1.5;
             }
+            .project-skills {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .skill-chip-sm {
+                padding: 3px 9px;
+                border-radius: 999px;
+                background: var(--surface-alt);
+                border: 1px solid var(--border);
+                font-size: 11.5px;
+                font-weight: 500;
+                color: var(--muted);
+            }
             .flip-hint {
                 margin-top: auto;
                 padding-top: 10px;
@@ -236,6 +266,12 @@
                 font-size: 13.5px;
                 line-height: 1.55;
                 color: var(--text);
+            }
+            .project-meta {
+                margin: 0;
+                font-size: 12px;
+                line-height: 1.5;
+                color: var(--muted);
             }
             .project-link {
                 display: inline-flex;
@@ -342,6 +378,15 @@
                                     Turns a plain-English feature ticket into
                                     planned, implemented, and reviewed code.
                                 </p>
+                                <div
+                                    class="project-skills"
+                                    aria-label="Tech stack"
+                                >
+                                    <span class="skill-chip-sm">CrewAI</span>
+                                    <span class="skill-chip-sm">FastAPI</span>
+                                    <span class="skill-chip-sm">Claude</span>
+                                    <span class="skill-chip-sm">SQLite</span>
+                                </div>
                                 <span class="flip-hint">Tap for details ↻</span>
                             </div>
                             <div class="flip-face flip-card-back">
@@ -350,14 +395,19 @@
                                     <p class="project-desc">
                                         A chat assistant built on CrewAI,
                                         FastAPI, and Anthropic's Claude models.
-                                        A three-agent pipeline — Planner, Coder,
-                                        Reviewer — turns a short feature ticket
-                                        into an editable plan, a real
-                                        implementation, and a pass/fail review
+                                        A three-agent pipeline (Planner, Coder,
+                                        Reviewer) turns a short feature ticket
+                                        into an editable, approval-gated plan
+                                        before anything gets built, then a real
+                                        implementation and a pass/fail review
                                         that sends the work back for another
-                                        attempt when it fails. Chit-chat and
-                                        one-off snippets are answered directly,
-                                        skipping the pipeline entirely.
+                                        attempt when it fails. Progress streams
+                                        live to the UI as it happens, and
+                                        conversations persist so past plans and
+                                        builds replay exactly as they looked.
+                                        Chit-chat and one-off snippets skip the
+                                        pipeline entirely and get answered
+                                        directly.
                                     </p>
                                 </div>
                                 <a class="project-link" href="/coddy">
@@ -378,37 +428,48 @@
                         </div>
                     </div>
 
-                    <!-- Card 2: Date Invitation -->
+                    <!-- Card 2: Yt Agents -->
                     <div
                         class="flip-card"
                         tabindex="0"
                         role="button"
                         aria-pressed="false"
-                        aria-label="Date Invitation project card, press to flip"
+                        aria-label="Yt Agents project card, press to flip"
                     >
                         <div class="flip-card-inner">
                             <div class="flip-face flip-card-front">
-                                <h3 class="project-title">Date Invitation</h3>
+                                <h3 class="project-title">Yt Agents</h3>
                                 <p class="project-tagline">
-                                    A web app for creating and sending custom
-                                    date invitations.
+                                    A multi-agent research assistant that plans,
+                                    queries, and summarizes over data with
+                                    CrewAI.
                                 </p>
+                                <div
+                                    class="project-skills"
+                                    aria-label="Tech stack"
+                                >
+                                    <span class="skill-chip-sm">CrewAI</span>
+                                    <span class="skill-chip-sm">Python</span>
+                                    <span class="skill-chip-sm">FastAPI</span>
+                                </div>
                                 <span class="flip-hint">Tap for details ↻</span>
                             </div>
                             <div class="flip-face flip-card-back">
                                 <div>
-                                    <h3 class="project-title">
-                                        Date Invitation
-                                    </h3>
+                                    <h3 class="project-title">Yt Agents</h3>
                                     <p class="project-desc">
-                                        A small web app for putting together and
-                                        sharing a personalized date invitation.
+                                        A small multi-agent app built on CrewAI:
+                                        an intent classifier, query builder, and
+                                        research agent work together to answer
+                                        questions and summarize the results.
+                                    </p>
+                                    <p class="project-meta">
+                                        Developed in its own git repo, vendored
+                                        into this site's codebase so it deploys
+                                        as part of the same app.
                                     </p>
                                 </div>
-                                <a
-                                    class="project-link"
-                                    href="/date-invitation/"
-                                >
+                                <!-- <a class="project-link" href="/yt-agents/">
                                     View project
                                     <svg
                                         viewBox="0 0 24 24"
@@ -421,7 +482,7 @@
                                         <path d="M5 12h14" />
                                         <path d="m12 5 7 7-7 7" />
                                     </svg>
-                                </a>
+                                </a> -->
                             </div>
                         </div>
                     </div>
@@ -454,7 +515,7 @@
                                         meantime.
                                     </p>
                                 </div>
-                                <a
+                                <!-- <a
                                     class="project-link"
                                     href="https://github.com/"
                                     target="_blank"
@@ -472,7 +533,56 @@
                                         <path d="M5 12h14" />
                                         <path d="m12 5 7 7-7 7" />
                                     </svg>
-                                </a>
+                                </a> -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 4: Coming soon placeholder -->
+                    <div
+                        class="flip-card is-placeholder"
+                        tabindex="0"
+                        role="button"
+                        aria-pressed="false"
+                        aria-label="Fourth project card, placeholder, press to flip"
+                    >
+                        <div class="flip-card-inner">
+                            <div class="flip-face flip-card-front">
+                                <span class="badge-soon">Coming soon</span>
+                                <h3 class="project-title">New project</h3>
+                                <p class="project-tagline">
+                                    Something new is in the works.
+                                </p>
+                                <span class="flip-hint">Tap for details ↻</span>
+                            </div>
+                            <div class="flip-face flip-card-back">
+                                <div>
+                                    <h3 class="project-title">Next project</h3>
+                                    <p class="project-desc">
+                                        Not published yet — check back soon, or
+                                        see everything else on GitHub in the
+                                        meantime.
+                                    </p>
+                                </div>
+                                <!-- <a
+                                    class="project-link"
+                                    href="https://github.com/"
+                                    target="_blank"
+                                    rel="noopener"
+                                >
+                                    View GitHub
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path d="M5 12h14" />
+                                        <path d="m12 5 7 7-7 7" />
+                                    </svg>
+                                </a> -->
                             </div>
                         </div>
                     </div>
@@ -515,11 +625,22 @@
 
             // Flip cards: click/tap anywhere on the card flips it, except a tap that lands
             // on the project link -- that should navigate, not flip. Keyboard users get the
-            // same toggle on Enter/Space via the card's own role="button".
-            document.querySelectorAll('.flip-card').forEach((card) => {
+            // same toggle on Enter/Space via the card's own role="button". Only one card is
+            // flipped at a time -- opening one flips every other card back first.
+            const allCards = document.querySelectorAll('.flip-card');
+            function setFlipped(card, flipped) {
+                card.classList.toggle('flipped', flipped);
+                card.setAttribute('aria-pressed', String(flipped));
+            }
+            allCards.forEach((card) => {
                 function toggle() {
-                    const flipped = card.classList.toggle('flipped');
-                    card.setAttribute('aria-pressed', String(flipped));
+                    const flipping = !card.classList.contains('flipped');
+                    if (flipping) {
+                        allCards.forEach((other) => {
+                            if (other !== card) setFlipped(other, false);
+                        });
+                    }
+                    setFlipped(card, flipping);
                 }
                 card.addEventListener('click', (e) => {
                     if (e.target.closest('a')) return;

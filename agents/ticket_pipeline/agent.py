@@ -1,6 +1,6 @@
 from crewai import Agent
 
-from agents.common.llm import llm
+from agents.common.llm import llm, structured_llm
 from agents.ticket_pipeline.tools import (
     list_files,
     read_file,
@@ -30,7 +30,7 @@ planner_agent = Agent(
     """,
     verbose=True,
     tools=[],
-    llm=llm,
+    llm=structured_llm,
     allow_delegation=False,
 )
 
@@ -64,6 +64,6 @@ reviewer_agent = Agent(
     """,
     verbose=True,
     tools=[read_file, list_files, run_python_syntax_check],
-    llm=llm,
+    llm=structured_llm,
     allow_delegation=False,
 )

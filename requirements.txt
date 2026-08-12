@@ -1,4 +1,3 @@
-a2wsgi
 aiofiles
 aiohappyeyeballs
 aiohttp
@@ -30,7 +29,6 @@ durationpy
 et_xmlfile
 fastapi
 filelock
-Flask
 flatbuffers
 frozenlist
 fsspec

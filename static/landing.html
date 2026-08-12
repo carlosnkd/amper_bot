@@ -98,7 +98,7 @@
                 border-bottom: 1px solid var(--border);
             }
             .header-inner {
-                max-width: 1040px;
+                width: 100%;
                 margin: 0 auto;
                 padding: 16px 24px;
                 display: flex;
@@ -252,23 +252,18 @@
 
         <main>
             <section class="hero">
-                <span class="eyebrow">AI &amp; Agentic Systems Engineer</span>
+                <span class="eyebrow">AI Engineer</span>
                 <h1>Carlos Nakid</h1>
                 <p class="headline">
                     Building production-ready agentic AI systems.
                 </p>
                 <p class="bio">
-                    I'm an AI &amp; Data Engineer focused on building
-                    production-ready AI systems, with experience in Agentic
-                    AI, LLMs, RAG, and conversational AI. I design multi-agent
-                    architectures, semantic retrieval pipelines, and
-                    AI-powered backend services using technologies such as
-                    Gemini, LangChain, CrewAI, FastAPI, and Google Cloud. My
-                    experience spans the full lifecycle of AI solutions, from
-                    data pipelines and backend development to deployment,
-                    evaluation, and production reliability.
+                    Experience in Agentic AI, LLMs, RAG, and conversational AI.
+                    I design multi-agent architectures, semantic retrieval
+                    pipelines, and AI-powered backend services using Gemini,
+                    LangChain, CrewAI, FastAPI, and Google Cloud.
                 </p>
-                <div class="skills" aria-label="Skills">
+                <!-- <div class="skills" aria-label="Skills">
                     <span class="skill-chip">Python</span>
                     <span class="skill-chip">FastAPI</span>
                     <span class="skill-chip">CrewAI</span>
@@ -279,26 +274,59 @@
                     <span class="skill-chip">Anthropic Claude</span>
                     <span class="skill-chip">Google Cloud / Vertex AI</span>
                     <span class="skill-chip">SQLAlchemy</span>
-                    <span class="skill-chip">Vector DBs (Chroma / LanceDB)</span>
-                </div>
+                    <span class="skill-chip"
+                        >Vector DBs (Chroma / LanceDB)</span
+                    >
+                </div> -->
                 <div class="cta-row">
                     <a class="btn btn-primary" href="/projects">
                         View projects
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
                             <path d="M5 12h14" />
                             <path d="m12 5 7 7-7 7" />
                         </svg>
                     </a>
-                    <a class="btn btn-secondary" href="mailto:carlos.nakidg@gmail.com">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <a
+                        class="btn btn-secondary"
+                        href="mailto:carlos.nakidg@gmail.com"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
                             <path d="M4 4h16v16H4z" />
                             <path d="m22 6-10 7L2 6" />
                         </svg>
                         Email me
                     </a>
-                    <a class="btn btn-secondary" href="/resume.pdf" target="_blank" rel="noopener">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <a
+                        class="btn btn-secondary"
+                        href="/resume.pdf"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path
+                                d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"
+                            />
                             <path d="M15 3h6v6" />
                             <path d="M10 14 21 3" />
                         </svg>
@@ -308,9 +336,7 @@
             </section>
         </main>
 
-        <footer>
-            © <span id="year"></span> Carlos Nakid.
-        </footer>
+        <footer>© <span id="year"></span> Carlos Nakid.</footer>
 
         <script>
             const ICONS = {
@@ -324,11 +350,16 @@
             let theme = localStorage.getItem('agent-theme') || 'light';
 
             function applyTheme() {
-                document.documentElement.classList.toggle('dark', theme === 'dark');
+                document.documentElement.classList.toggle(
+                    'dark',
+                    theme === 'dark',
+                );
                 themeBtn.innerHTML = theme === 'light' ? ICONS.moon : ICONS.sun;
                 themeBtn.setAttribute(
                     'aria-label',
-                    theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme',
+                    theme === 'light'
+                        ? 'Switch to dark theme'
+                        : 'Switch to light theme',
                 );
             }
             themeBtn.addEventListener('click', () => {
@@ -338,7 +369,8 @@
             });
             applyTheme();
 
-            document.getElementById('year').textContent = new Date().getFullYear();
+            document.getElementById('year').textContent =
+                new Date().getFullYear();
         </script>
     </body>
 </html>
