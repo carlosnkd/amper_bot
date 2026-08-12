@@ -1,4 +1,5 @@
 import json
+import os
 import secrets
 from fastapi import FastAPI, Form
 from pathlib import Path
@@ -26,12 +27,17 @@ def on_startup() -> None:
 # ---------------------------------------------------------------------------
 # Password gate for the /coddy project page.
 #
-# The project should not be publicly browsable. The password lives in
+# The project should not be publicly browsable. Locally, the password lives in
 # project_password.json (gitignored -- see project_password.example.json for
-# the format and edit the real file's value before deploying). There's no
-# cookie/session: GET always shows the password form, and a correct POST
-# returns the real page for that one response only, so the form reappears on
-# the next visit/refresh, exactly like re-entering a locked door each time.
+# the format and edit the real file's value before deploying). That file never
+# reaches a real deployment (it's gitignored, so the deployed checkout simply
+# doesn't have it), so PROJECT_PASSWORD env var takes priority when set --
+# that's what to configure in Railway's service Variables tab. The file stays
+# as the local-dev fallback so nothing changes about running this on a laptop.
+# There's no cookie/session: GET always shows the password form, and a correct
+# POST returns the real page for that one response only, so the form
+# reappears on the next visit/refresh, exactly like re-entering a locked door
+# each time.
 #
 # Note this only gates the project's entry page, not every sub-resource --
 # static assets and API calls made *by* the page once loaded aren't
@@ -42,6 +48,9 @@ PROJECT_PASSWORD_FILE = Path("project_password.json")
 
 
 def _load_gate_password() -> str | None:
+    env_password = os.environ.get("PROJECT_PASSWORD")
+    if env_password:
+        return env_password
     try:
         data = json.loads(PROJECT_PASSWORD_FILE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
