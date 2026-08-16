@@ -34,6 +34,11 @@ def build_plan_task(feedback: str | None = None, previous_plan: dict | None = No
             Previous plan (JSON): {previous_plan}
 
             User's requested changes: {feedback}
+
+            Carry every task from the previous plan forward UNCHANGED unless this feedback
+            explicitly targets it for removal or modification. If the feedback asks you to
+            drop a task, the correct output simply omits that task -- do not replace it with
+            a task about removing/announcing/documenting the removal.
         """
         if feedback
         else ""
@@ -63,12 +68,16 @@ def build_plan_task(feedback: str | None = None, previous_plan: dict | None = No
             "the app is written in the same language as the rest of the codebase"). Aim for
             3-5; if you can't justify why a guess deserves to be there, leave it out.
 
-            Size each task the way a senior engineer would size a unit of work to hand off --
-            a coherent, reviewable chunk (e.g. "add the rate-limit middleware and wire it into
-            the endpoint," not three separate tasks for "add config," "read config," and "wire
-            it in"). Aim for 5-8 tasks for a typical ticket. A larger ticket can genuinely need
-            more -- don't cut real scope to hit a number -- but never split one coherent change
-            into multiple tasks just to look thorough.
+            Before drafting tasks, classify this ticket's size and use it as a ceiling on
+            task count -- go back and merge tasks if you're tempted to exceed it, rather than
+            treating it as a target to reach:
+              - Trivial (one-line fix, config change, typo): 1 task.
+              - Small (single endpoint, single bug, single follow-up amendment): 2-4 tasks.
+              - Medium (new subsystem feature, e.g. adding caching or a pipeline step): 4-6 tasks.
+              - Large (multi-component build, e.g. a new multi-agent pipeline): 7-10 tasks.
+            A genuinely large ticket can need the higher end -- don't cut real scope to hit a
+            number -- but never split one coherent change into multiple tasks just to look
+            thorough.
         """,
         expected_output="""
             Valid JSON only, no markdown fences, no extra text, in exactly this shape:

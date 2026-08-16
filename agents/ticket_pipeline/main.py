@@ -7,7 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 async def plan_ticket(
-    ticket: str, conversation_id: str, plan_feedback: str | None = None, previous_plan: dict | None = None
+    ticket: str, conversation_id: str, plan_feedback: str | None = None, previous_plan: dict | None = None,
+    test_mode: list | None = None
 ) -> dict:
     """
     Runs the Planner only (phase 1 of the pipeline) and returns the proposed plan without
@@ -16,7 +17,10 @@ async def plan_ticket(
     `plan_feedback` + `previous_plan` are set when this is a revision turn ("request
     changes" on a plan the user already saw) rather than a brand-new ticket.
     """
-    prior_turns = get_ticket_history(conversation_id)
+    if test_mode is not None:
+        prior_turns = test_mode
+    else:
+        prior_turns = get_ticket_history(conversation_id)
 
     flow = TicketPlanFlow()
     final_state = await flow.kickoff_async(

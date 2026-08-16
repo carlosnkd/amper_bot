@@ -1,43 +1,11 @@
 {
   "assumptions": [
-    "The API is a FastAPI/Starlette ASGI app; the limiter is implemented as ASGI middleware plus an optional per-route dependency/decorator for overrides. If the codebase is Flask/Django, the same design maps to a WSGI middleware + view decorator.",
-    "Redis is the storage backend so limits are shared across processes and replicas, with an in-memory backend used as a fallback for local dev and tests. The backend is chosen behind a small interface so it can be swapped.",
-    "Algorithm is a fixed-window counter implemented atomically in Redis (INCR + EXPIRE via Lua). Cheaper and simpler than sliding-window/token-bucket, at the cost of allowing up to 2x burst at a window boundary.",
-    "Identity for a limited caller is the authenticated principal (API key / user id from the existing auth context) when present, falling back to client IP derived from X-Forwarded-For (trusting the last N proxy hops, configurable) for anonymous traffic.",
-    "If Redis is unreachable, the limiter fails open (requests are allowed) and logs an error, so a cache outage cannot take the whole API down."
+    "No prior plan exists in this conversation (history entries are empty), so this ticket is treated as defining the observability scope from scratch: basic logging fully replaces the metrics dashboard requirement, with no metrics dashboard task or metrics-collection backend needed.",
+    "Basic logging will use the application's existing logging framework/library rather than introducing a new logging or metrics stack.",
+    "Log output goes to standard application logs (stdout/log files), not to any external monitoring or visualization service."
   ],
   "tasks": [
-    {
-      "id": "T1",
-      "description": "Add rate-limit configuration: a settings block (env-var driven, e.g. RATELIMIT_ENABLED, RATELIMIT_BACKEND, RATELIMIT_REDIS_URL, RATELIMIT_DEFAULT='100/minute', RATELIMIT_TRUSTED_PROXY_HOPS) parsed into a typed config object, plus a parser for the 'N/period' limit string (second, minute, hour, day) that raises a clear error on malformed values. Include per-route override config as a mapping of route name/path -> limit string."
-    },
-    {
-      "id": "T2",
-      "description": "Define the storage backend interface (e.g. abstract `RateLimitBackend` with an async `incr(key, window_seconds) -> (count, ttl_remaining)` and `reset(key)`), and implement the in-memory backend with proper expiry and a lock for thread/task safety. This is the backend used in tests and local dev."
-    },
-    {
-      "id": "T3",
-      "description": "Implement the Redis backend against the same interface using a Lua script for an atomic INCR + EXPIRE-if-new, returning the current count and remaining TTL in one round trip. Wrap Redis calls so connection/timeout errors raise a dedicated `BackendUnavailable` exception rather than leaking redis-py errors."
-    },
-    {
-      "id": "T4",
-      "description": "Implement the core limiter: caller-identity resolution (authenticated principal first, then client IP from X-Forwarded-For honoring the configured trusted-hop count, then remote address), key construction (`ratelimit:{scope}:{identity}:{window_start}`), the fixed-window check that returns allow/deny plus limit, remaining, and reset timestamp, and fail-open behavior with an error log when the backend raises `BackendUnavailable`."
-    },
-    {
-      "id": "T5",
-      "description": "Add the middleware and wire it into the app: apply the default limit to all API endpoints, skip health/metrics/docs paths, and on rejection return HTTP 429 with the standard JSON error body and `Retry-After` plus `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers. Set the same X-RateLimit-* headers on successful responses. Honor RATELIMIT_ENABLED as a global kill switch."
-    },
-    {
-      "id": "T6",
-      "description": "Add a per-route override mechanism (decorator/dependency such as `@rate_limit('10/minute')`) that the middleware consults via route metadata, so expensive or auth-sensitive endpoints can tighten or exempt (`@rate_limit(None)`) the default. Apply a stricter limit to the login/token endpoint as a first consumer."
-    },
-    {
-      "id": "T7",
-      "description": "Write tests: unit tests for the limit-string parser, both backends (counting, window rollover, expiry), and identity resolution including X-Forwarded-For spoofing with untrusted hops; integration tests hitting a real endpoint that assert the Nth request passes, N+1 returns 429 with correct headers, the counter resets after the window, limits are isolated per identity, per-route overrides win over the default, and a simulated Redis outage fails open."
-    },
-    {
-      "id": "T8",
-      "description": "Add operational glue and docs: structured log line on every 429 (identity, route, limit), a counter metric for allowed/throttled requests tagged by route, README/docs section covering configuration, the 429 contract and response headers for API consumers, and the fail-open behavior plus its security tradeoff."
-    }
+    {"id": "T1", "description": "Add basic structured logging around key operations (incoming requests, errors, important state changes) using the existing logging framework, with appropriate log levels (info/warn/error) so failures and key events are traceable without a dashboard."},
+    {"id": "T2", "description": "Ensure log entries include timestamps, severity, and relevant context (e.g. request/user identifiers), and verify no metrics dashboard, metrics-collection library, or related dependency is included in the build."}
   ]
 }
