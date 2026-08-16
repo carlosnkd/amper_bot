@@ -1,0 +1,284 @@
+[
+  {
+    "id": "ticket_001",
+    "history": [],
+    "message": "Add a /export endpoint that lets users download their tickets as CSV",
+    "expected_intent": "TICKET",
+    "expected_reply_empty": true,
+    "notes": "Clear concrete feature request against this product's backend.",
+    "intent": "TICKET",
+    "reasoning": "User requests adding a new endpoint to this product's codebase for exporting tickets as CSV -- a concrete feature to build."
+  },
+  {
+    "id": "ticket_002",
+    "history": [],
+    "message": "The login form doesn't show an error when the password is wrong, can you fix that?",
+    "expected_intent": "TICKET",
+    "expected_reply_empty": true,
+    "notes": "Bug fix request scoped to this product's UI.",
+    "intent": "TICKET",
+    "reasoning": "Request to fix a specific bug in this product's login form (missing error display on wrong password)."
+  },
+  {
+    "id": "ticket_003",
+    "history": [],
+    "message": "can u make it so the reviewer agent also checks for sql injection",
+    "expected_intent": "TICKET",
+    "expected_reply_empty": true,
+    "notes": "Casual phrasing but still a concrete change to this product's pipeline.",
+    "intent": "TICKET",
+    "reasoning": "User requests a modification to the reviewer agent in this product's codebase to add SQL injection checking."
+  },
+  {
+    "id": "ticket_004",
+    "history": [
+      {
+        "role": "user",
+        "content": "I want to add rate limiting to the API"
+      },
+      {
+        "role": "assistant",
+        "content": "Sounds good â€” I put together a plan for adding rate limiting to the FastAPI backend."
+      }
+    ],
+    "message": "yeah go ahead but make the limit configurable per user tier",
+    "expected_intent": "TICKET",
+    "expected_reply_empty": true,
+    "notes": "Follow-up refinement of an in-progress ticket; requires conversation history for correct classification.",
+    "intent": "TICKET",
+    "reasoning": "User is asking to modify the rate-limiting feature already in progress for this product's API, specifying a new requirement (per-tier configurability) that the Planner should incorporate into the implementation plan."
+  },
+  {
+    "id": "ticket_005",
+    "history": [],
+    "message": "investigate why the SSE stream drops connections after ~60 seconds",
+    "expected_intent": "TICKET",
+    "expected_reply_empty": true,
+    "notes": "Investigation request still scoped to this product's own code.",
+    "intent": "TICKET",
+    "reasoning": "Request to investigate and fix a technical issue (SSE connection drops) in this product's codebase."
+  },
+  {
+    "id": "snippet_001",
+    "history": [],
+    "message": "give me a simple FastAPI hello-world script",
+    "expected_intent": "SNIPPET",
+    "expected_reply_empty": false,
+    "notes": "Self-contained technical request unrelated to this product's codebase.",
+    "reply_should_contain_code": true,
+    "intent": "SNIPPET",
+    "reasoning": "Request for a self-contained code example (FastAPI hello-world) with no connection to this product's own codebase."
+  },
+  {
+    "id": "snippet_002",
+    "history": [],
+    "message": "how does Python's GIL work?",
+    "expected_intent": "SNIPPET",
+    "expected_reply_empty": false,
+    "notes": "Programming knowledge question, not about this product.",
+    "reply_should_contain_code": false,
+    "intent": "SNIPPET",
+    "reasoning": "Asks a technical programming question about Python internals that doesn't involve this product's codebase."
+  },
+  {
+    "id": "snippet_003",
+    "history": [],
+    "message": "write me a regex that matches emails",
+    "expected_intent": "SNIPPET",
+    "expected_reply_empty": false,
+    "notes": "Quick standalone code request.",
+    "reply_should_contain_code": true,
+    "intent": "SNIPPET",
+    "reasoning": "Self-contained programming request for a regex pattern, not related to this product's codebase."
+  },
+  {
+    "id": "snippet_004",
+    "history": [],
+    "message": "what's the difference between asyncio.gather and asyncio.wait?",
+    "expected_intent": "SNIPPET",
+    "expected_reply_empty": false,
+    "notes": "General programming Q&A, no code required but still technical/software-engineering.",
+    "reply_should_contain_code": false,
+    "intent": "SNIPPET",
+    "reasoning": "Python async/concurrency question unrelated to this product's codebase—a self-contained technical request for explanation and comparison."
+  },
+  {
+    "id": "snippet_005",
+    "history": [],
+    "message": "dame un ejemplo rapido de un decorador en python que mida tiempo de ejecucion",
+    "expected_intent": "SNIPPET",
+    "expected_reply_empty": false,
+    "notes": "Spanish-language snippet request; reply should be in Spanish.",
+    "reply_should_contain_code": true,
+    "intent": "SNIPPET",
+    "reasoning": "User asks for a quick example of a Python decorator that measures execution time—a self-contained programming task unrelated to this product's codebase."
+  },
+  {
+    "id": "chat_smalltalk_001",
+    "history": [],
+    "message": "hey, what's up?",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Greeting/small talk.",
+    "reply_should_leak_offtopic_answer": false,
+    "intent": "CHAT",
+    "reasoning": "Greeting with no request to build, fix, or investigate anything."
+  },
+  {
+    "id": "chat_smalltalk_002",
+    "history": [],
+    "message": "what can you actually do?",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Question about the assistant itself; should mention planning/building features.",
+    "reply_should_leak_offtopic_answer": false,
+    "intent": "CHAT",
+    "reasoning": "User is asking about what this assistant can do, which is small talk/clarification about the assistant's capabilities."
+  },
+  {
+    "id": "chat_smalltalk_003",
+    "history": [],
+    "message": "thanks, that plan looks good",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Acknowledgement/small talk with no new request.",
+    "intent": "CHAT",
+    "reasoning": "User is thanking for a plan, but there is no prior conversation history to reference — this appears to be either a mistaken message or small talk without a concrete request."
+  },
+  {
+    "id": "chat_smalltalk_004",
+    "history": [],
+    "message": "buenos dias!",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Spanish greeting; reply expected in Spanish.",
+    "intent": "CHAT",
+    "reasoning": "Greeting with no request to build, change, or investigate anything."
+  },
+  {
+    "id": "chat_offtopic_001",
+    "history": [],
+    "message": "what is the price of a big mac in mexico",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Off-topic general knowledge; reply must decline and redirect, never give the price.",
+    "reply_should_leak_offtopic_answer": false,
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about pricing unrelated to coding or this product's features."
+  },
+  {
+    "id": "chat_offtopic_002",
+    "history": [],
+    "message": "who won the champions league last season?",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Sports trivia, must be declined without any partial answer.",
+    "reply_should_leak_offtopic_answer": false,
+    "intent": "CHAT",
+    "reasoning": "Off-topic sports trivia question unrelated to coding, software engineering, or this product's codebase."
+  },
+  {
+    "id": "chat_offtopic_003",
+    "history": [],
+    "message": "de que se trata el libro dimelo bajito",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Off-topic in Spanish; reply must decline in Spanish and not summarize the book.",
+    "reply_should_leak_offtopic_answer": false,
+    "intent": "CHAT",
+    "reasoning": "User asks for a book summary in Spanish, which is a general-knowledge/literature question unrelated to coding or this product."
+  },
+  {
+    "id": "chat_offtopic_004",
+    "history": [],
+    "message": "how many calories are in a banana?",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Health/nutrition trivia, off-topic decline expected.",
+    "reply_should_leak_offtopic_answer": false,
+    "intent": "CHAT",
+    "reasoning": "General-knowledge nutrition question unrelated to coding, software development, or this product."
+  },
+  {
+    "id": "chat_offtopic_005",
+    "history": [],
+    "message": "can you translate 'good morning' to French?",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Unrelated translation request, not code/product related -> decline.",
+    "reply_should_leak_offtopic_answer": false,
+    "intent": "CHAT",
+    "reasoning": "General-knowledge translation request unrelated to coding, software, or this product's codebase."
+  },
+  {
+    "id": "chat_offtopic_006",
+    "history": [],
+    "message": "best pasta recipe for 2 people?",
+    "expected_intent": "CHAT",
+    "expected_reply_empty": false,
+    "notes": "Recipe/off-topic, no partial recipe should appear in reply.",
+    "reply_should_leak_offtopic_answer": false,
+    "intent": "CHAT",
+    "reasoning": "User is asking for a general cooking/recipe recommendation, which is off-topic and outside the scope of coding and product planning."
+  },
+  {
+    "id": "ambiguous_001",
+    "history": [],
+    "message": "can you check if there's a memory leak in our worker process?",
+    "expected_intent": "TICKET",
+    "expected_reply_empty": true,
+    "notes": "Investigation of this product's own worker -> TICKET, not SNIPPET, despite technical phrasing.",
+    "intent": "TICKET",
+    "reasoning": "User is asking to investigate a problem (memory leak) in their product's own worker process codebase."
+  },
+  {
+    "id": "ambiguous_002",
+    "history": [],
+    "message": "what's a good way to detect memory leaks in a long-running Python process in general?",
+    "expected_intent": "SNIPPET",
+    "expected_reply_empty": false,
+    "notes": "General technique question, not tied to this product's codebase -> SNIPPET.",
+    "reply_should_contain_code": false,
+    "intent": "SNIPPET",
+    "reasoning": "This is a self-contained technical/programming question about general Python best practices, not about this product's codebase."
+  },
+  {
+    "id": "ambiguous_003",
+    "history": [
+      {
+        "role": "user",
+        "content": "We're using CrewAI for the three-agent pipeline"
+      },
+      {
+        "role": "assistant",
+        "content": "Got it, noted."
+      }
+    ],
+    "message": "how would I add a fourth agent to a CrewAI crew in general?",
+    "expected_intent": "SNIPPET",
+    "expected_reply_empty": false,
+    "notes": "Asks about CrewAI mechanics generically, not a request to modify this product -> SNIPPET even with relevant history.",
+    "reply_should_contain_code": true,
+    "intent": "SNIPPET",
+    "reasoning": "User asks how to add a fourth agent to a CrewAI crew—a standalone technical/programming question unrelated to this product's codebase."
+  },
+  {
+    "id": "ambiguous_004",
+    "history": [
+      {
+        "role": "user",
+        "content": "Let's add a fourth agent, a Tester, to our pipeline"
+      },
+      {
+        "role": "assistant",
+        "content": "Sure, here's a plan to add a Tester agent after the Reviewer step."
+      }
+    ],
+    "message": "yes do that, and have it run pytest before approval",
+    "expected_intent": "TICKET",
+    "expected_reply_empty": true,
+    "notes": "Follow-up confirming/refining a concrete change to this product's pipeline.",
+    "intent": "TICKET",
+    "reasoning": "User is asking to add a Tester agent to this product's pipeline and integrate pytest checks, which is a concrete feature request for the product's own codebase."
+  }
+]

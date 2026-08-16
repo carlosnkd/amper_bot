@@ -1,0 +1,962 @@
+[
+  {
+    "id": "TC-001",
+    "message": "Add an endpoint that exports SQL query results as CSV",
+    "expected_intent": "TICKET",
+    "notes": "Concrete feature request touching this product's own backend.",
+    "intent": "TICKET",
+    "reasoning": "Request to add a new endpoint to this product's codebase—a concrete feature for the API that a Planner can turn into implementation tasks."
+  },
+  {
+    "id": "TC-002",
+    "message": "The Reviewer agent isn't failing when the generated code has a syntax error, can you fix that?",
+    "expected_intent": "TICKET",
+    "notes": "Bug report about this product's own pipeline.",
+    "intent": "TICKET",
+    "reasoning": "Request to fix a bug in this product's own Reviewer agent—a concrete issue to investigate and resolve in the codebase."
+  },
+  {
+    "id": "TC-003",
+    "message": "Can you add JWT authentication to the FastAPI backend?",
+    "expected_intent": "TICKET",
+    "notes": "Feature request scoped to this product's backend.",
+    "intent": "TICKET",
+    "reasoning": "User asks to add a specific feature (JWT authentication) to this product's FastAPI backend codebase, which requires planning and engineering tasks."
+  },
+  {
+    "id": "TC-004",
+    "message": "The Planner agent isn't generating tasks correctly for multi-table joins, please check",
+    "expected_intent": "TICKET",
+    "notes": "Investigation/fix request on this product's own agent.",
+    "intent": "TICKET",
+    "reasoning": "User reports that the Planner agent (part of this product) isn't generating tasks correctly for multi-table joins and asks for investigation/fix in the codebase."
+  },
+  {
+    "id": "TC-005",
+    "message": "I need a rate limiter on the /run endpoint",
+    "expected_intent": "TICKET",
+    "notes": "Concrete build request for this product.",
+    "intent": "TICKET",
+    "reasoning": "User is requesting a rate limiter to be added to the /run endpoint of this product's own codebase."
+  },
+  {
+    "id": "TC-006",
+    "message": "Update the SSE streaming so it sends token-by-token instead of full chunks",
+    "expected_intent": "TICKET",
+    "notes": "Change request to this product's streaming implementation.",
+    "intent": "TICKET",
+    "reasoning": "Request to modify this product's SSE streaming behavior—a concrete engineering change to the codebase that a Planner should break into tasks."
+  },
+  {
+    "id": "TC-007",
+    "message": "Refactor the NL2SQL prompt so it handles ambiguous column names better",
+    "expected_intent": "TICKET",
+    "notes": "Change to this product's own NL2SQL logic.",
+    "intent": "TICKET",
+    "reasoning": "Asks to refactor a specific NL2SQL prompt in this product's codebase to improve handling of ambiguous column names—a concrete engineering task."
+  },
+  {
+    "id": "TC-008",
+    "message": "Can you add a retry with backoff around the Anthropic API calls in the Coder agent?",
+    "expected_intent": "TICKET",
+    "notes": "Applies a general technique but explicitly to this product's own Coder agent.",
+    "intent": "TICKET",
+    "reasoning": "User requests adding retry-with-backoff logic to Anthropic API calls in this product's own Coder agent codebase."
+  },
+  {
+    "id": "TC-009",
+    "message": "Our approval-gate step doesn't block execution when the user rejects a plan, that's a bug",
+    "expected_intent": "TICKET",
+    "notes": "Bug in this product's approval-gated workflow.",
+    "intent": "TICKET",
+    "reasoning": "User reports a bug in this product's approval-gate step that fails to block execution on rejection—a concrete issue to investigate and fix in the codebase."
+  },
+  {
+    "id": "TC-010",
+    "message": "Add Redis-backed caching for repeated NL2SQL queries",
+    "expected_intent": "TICKET",
+    "notes": "Concrete infra change to this product.",
+    "intent": "TICKET",
+    "reasoning": "Request to add a caching feature (Redis-backed) to this product's NL2SQL query system—a concrete implementation task for the codebase."
+  },
+  {
+    "id": "TC-011",
+    "message": "quiero que agregues logging estructurado a los tres agentes",
+    "expected_intent": "TICKET",
+    "notes": "Spanish-language feature request scoped to this product's agents.",
+    "intent": "TICKET",
+    "reasoning": "Solicitud concreta de agregar una característica (logging estructurado) a los agentes del producto mismo."
+  },
+  {
+    "id": "TC-012",
+    "message": "the ticket workspace isn't cleaning up temp files after a run finishes",
+    "expected_intent": "TICKET",
+    "notes": "Bug in this product's own ticket workspace handling.",
+    "intent": "TICKET",
+    "reasoning": "Request to fix a bug in this product's own codebase—the ticket workspace temp file cleanup issue—which the Planner can turn into engineering tasks."
+  },
+  {
+    "id": "TC-013",
+    "history": [
+      {
+        "role": "user",
+        "content": "Add an endpoint that exports SQL query results as CSV"
+      },
+      {
+        "role": "assistant",
+        "content": "Sure, drafting a plan for that now."
+      }
+    ],
+    "message": "also make sure it streams for large result sets",
+    "expected_intent": "TICKET",
+    "notes": "Follow-up refining an existing ticket; history should carry TICKET context forward.",
+    "intent": "TICKET",
+    "reasoning": "Follow-up clarification on the same feature request (CSV export endpoint) to add a streaming requirement for large datasets."
+  },
+  {
+    "id": "TC-014",
+    "message": "can you make the Coder agent run in a sandboxed subprocess instead of exec()?",
+    "expected_intent": "TICKET",
+    "notes": "Security/architecture change to this product's own Coder agent.",
+    "intent": "TICKET",
+    "reasoning": "Request to modify how the Coder agent executes code in this product's own codebase—moving from exec() to sandboxed subprocess execution."
+  },
+  {
+    "id": "TC-015",
+    "message": "swap our current Haiku classifier call for a cheaper prompt template",
+    "expected_intent": "TICKET",
+    "notes": "Change to this product's own Intent classifier.",
+    "intent": "TICKET",
+    "reasoning": "Request to replace an existing Haiku classifier implementation with a cheaper alternative in this product's codebase."
+  },
+  {
+    "id": "TC-016",
+    "message": "the /run route returns a 500 when the ticket has no description, please fix",
+    "expected_intent": "TICKET",
+    "notes": "Concrete bug fix in this product.",
+    "intent": "TICKET",
+    "reasoning": "User is reporting a bug in this product's own codebase (/run route returning 500 error) and requesting a fix."
+  },
+  {
+    "id": "TC-017",
+    "message": "add unit tests for the Intent classifier's SNIPPET branch",
+    "expected_intent": "TICKET",
+    "notes": "Concrete engineering task on this product's codebase, even though it's about tests for classification.",
+    "intent": "TICKET",
+    "reasoning": "User is asking to add unit tests for a specific component (Intent classifier's SNIPPET branch) in this product's own codebase."
+  },
+  {
+    "id": "TC-018",
+    "message": "can we version the ticket plans so users can roll back to a previous plan?",
+    "expected_intent": "TICKET",
+    "notes": "Feature request for this product.",
+    "intent": "TICKET",
+    "reasoning": "User requests a new feature (versioning and rollback for ticket plans) in this product's own codebase—a concrete request for a Planner to break into engineering tasks."
+  },
+  {
+    "id": "TC-019",
+    "message": "investigate why prompt caching isn't reducing our token costs on the Planner calls",
+    "expected_intent": "TICKET",
+    "notes": "Investigation tied directly to this product's own Planner usage.",
+    "intent": "TICKET",
+    "reasoning": "Concrete request to investigate a performance/cost issue in this product's own codebase (Planner calls and prompt caching behavior)."
+  },
+  {
+    "id": "TC-020",
+    "message": "necesito que el pipeline reintente automaticamente si el Reviewer rechaza el codigo dos veces",
+    "expected_intent": "TICKET",
+    "notes": "Spanish feature/behavior change request for this product's pipeline.",
+    "intent": "TICKET",
+    "reasoning": "User requests automatic retry logic in the pipeline when code is rejected twice by a Reviewer—a concrete change to this product's own workflow system."
+  },
+  {
+    "id": "TC-021",
+    "message": "hook up MCP so the Coder agent can read from our internal docs server",
+    "expected_intent": "TICKET",
+    "notes": "Integration work scoped to this product.",
+    "intent": "TICKET",
+    "reasoning": "Request to integrate MCP with the Coder agent to access internal documentation—a concrete feature to build in this product's own codebase."
+  },
+  {
+    "id": "TC-022",
+    "message": "the approval UI shows the diff twice, can you dedupe that",
+    "expected_intent": "TICKET",
+    "notes": "UI bug in this product.",
+    "intent": "TICKET",
+    "reasoning": "User reports a UI bug (duplicate diff display) in this product's approval interface and implicitly requests a fix."
+  },
+  {
+    "id": "TC-023",
+    "message": "let's add an LLM-as-judge eval step after the Coder writes code, before Review",
+    "expected_intent": "TICKET",
+    "notes": "Feature addition to this product's own pipeline architecture.",
+    "intent": "TICKET",
+    "reasoning": "User requests adding a new evaluation step to this product's code generation pipeline, a concrete change to the product's own workflow/architecture."
+  },
+  {
+    "id": "TC-024",
+    "message": "can you make ticket titles auto-generate from the first user message?",
+    "expected_intent": "TICKET",
+    "notes": "Small but concrete feature request for this product.",
+    "intent": "TICKET",
+    "reasoning": "Requests a feature addition to this product's own codebase: auto-generating ticket titles from initial user messages."
+  },
+  {
+    "id": "TC-025",
+    "history": [
+      {
+        "role": "user",
+        "content": "the /run route returns a 500 when the ticket has no description, please fix"
+      },
+      {
+        "role": "assistant",
+        "content": "Got it, I'll patch the validation and add a test."
+      }
+    ],
+    "message": "while you're in there also validate that the ticket title isn't empty",
+    "expected_intent": "TICKET",
+    "notes": "Follow-up extending scope of an existing ticket-related fix.",
+    "intent": "TICKET",
+    "reasoning": "Follow-up request to add validation logic to this product's /run route—a concrete change to the codebase that the Planner can turn into engineering tasks."
+  },
+  {
+    "id": "TC-026",
+    "message": "What is OOP?",
+    "expected_intent": "SNIPPET",
+    "notes": "KNOWN BUG CASE: currently misclassified as CHAT; this is a self-contained programming concept question and should be SNIPPET, not a general-knowledge decline.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about object-oriented programming concepts, not a request to build/fix this product or write self-contained code."
+  },
+  {
+    "id": "TC-027",
+    "message": "What is the functional paradigm about?",
+    "expected_intent": "SNIPPET",
+    "notes": "KNOWN BUG CASE: currently misclassified as CHAT; programming-paradigm question should be SNIPPET.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about programming paradigms, not a request to build or change this product's codebase or write working code."
+  },
+  {
+    "id": "TC-028",
+    "message": "What is inheritance in OOP?",
+    "expected_intent": "SNIPPET",
+    "notes": "Same family as the OOP bug case; programming concept question.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge programming theory question unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-029",
+    "message": "Explain encapsulation in object-oriented programming",
+    "expected_intent": "SNIPPET",
+    "notes": "Programming concept question, self-contained.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about OOP concepts that is not a request to build or change this product, nor a self-contained coding task requesting implementation."
+  },
+  {
+    "id": "TC-030",
+    "message": "What is polymorphism?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare programming term; risk of being misread as trivia/CHAT like the OOP bug.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about a computer science concept unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-031",
+    "message": "Write me a simple FastAPI hello-world script",
+    "expected_intent": "SNIPPET",
+    "notes": "Example from the classifier's own prompt.",
+    "intent": "SNIPPET",
+    "reasoning": "User asks for a self-contained code example (FastAPI hello-world) with no relation to this product's codebase."
+  },
+  {
+    "id": "TC-032",
+    "message": "Give me a regex for validating emails",
+    "expected_intent": "SNIPPET",
+    "notes": "Example from the classifier's own prompt.",
+    "intent": "SNIPPET",
+    "reasoning": "Request for a self-contained regex pattern for email validation, with no connection to this product's codebase."
+  },
+  {
+    "id": "TC-033",
+    "message": "How do I reverse a linked list in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "Example from the classifier's own prompt.",
+    "intent": "SNIPPET",
+    "reasoning": "Self-contained programming question asking for code implementation unrelated to this product's codebase."
+  },
+  {
+    "id": "TC-034",
+    "message": "How does Python's GIL work?",
+    "expected_intent": "SNIPPET",
+    "notes": "Self-contained technical question, not about this product.",
+    "intent": "CHAT",
+    "reasoning": "General programming knowledge question unrelated to building, fixing, or changing this product's codebase."
+  },
+  {
+    "id": "TC-035",
+    "message": "What's the time complexity of quicksort?",
+    "expected_intent": "SNIPPET",
+    "notes": "CS concept question.",
+    "intent": "SNIPPET",
+    "reasoning": "A straightforward technical/algorithmic question unrelated to this product's codebase — pure computer science education."
+  },
+  {
+    "id": "TC-036",
+    "message": "What is a decorator in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "Programming concept question.",
+    "intent": "SNIPPET",
+    "reasoning": "Technical programming question asking for an explanation of a Python language concept, not related to this product's codebase."
+  },
+  {
+    "id": "TC-037",
+    "message": "Explain dependency injection",
+    "expected_intent": "SNIPPET",
+    "notes": "Software engineering concept, no ticket context.",
+    "intent": "CHAT",
+    "reasoning": "General software engineering concept question unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-038",
+    "message": "What's the difference between async and sync in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "Programming concept comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "A straightforward technical programming question about Python language concepts, not related to building or changing this product's codebase."
+  },
+  {
+    "id": "TC-039",
+    "message": "What is a race condition?",
+    "expected_intent": "SNIPPET",
+    "notes": "CS/concurrency concept.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about a computer science concept unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-040",
+    "message": "Explain the SOLID principles",
+    "expected_intent": "SNIPPET",
+    "notes": "Software design concept question.",
+    "intent": "CHAT",
+    "reasoning": "General software-engineering educational question unrelated to building or fixing this product's own codebase."
+  },
+  {
+    "id": "TC-041",
+    "message": "What is a closure in JavaScript?",
+    "expected_intent": "SNIPPET",
+    "notes": "Programming language concept.",
+    "intent": "SNIPPET",
+    "reasoning": "Asks for an explanation and definition of a JavaScript programming concept, self-contained and not touching this product's codebase."
+  },
+  {
+    "id": "TC-042",
+    "message": "How does garbage collection work in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "Runtime/language internals question.",
+    "intent": "CHAT",
+    "reasoning": "General knowledge question about Python internals, not a request to build or fix anything in this product's codebase or a self-contained programming task."
+  },
+  {
+    "id": "TC-043",
+    "message": "What's the difference between == and is in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "Language semantics question.",
+    "intent": "SNIPPET",
+    "reasoning": "A direct technical question about Python language semantics that doesn't involve this product's codebase—a standard programming knowledge question."
+  },
+  {
+    "id": "TC-044",
+    "message": "Write a bubble sort implementation in Python",
+    "expected_intent": "SNIPPET",
+    "notes": "Direct code request unrelated to this product.",
+    "intent": "SNIPPET",
+    "reasoning": "Self-contained programming request for a standalone algorithm implementation, not related to this product's codebase."
+  },
+  {
+    "id": "TC-045",
+    "message": "What is a REST API?",
+    "expected_intent": "SNIPPET",
+    "notes": "General technical concept question.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about software concepts unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-046",
+    "message": "What is Big O notation?",
+    "expected_intent": "SNIPPET",
+    "notes": "CS fundamentals question.",
+    "intent": "CHAT",
+    "reasoning": "This is a general computer science theory question unrelated to building or fixing this product's codebase or solving a specific programming problem."
+  },
+  {
+    "id": "TC-047",
+    "message": "How do I set up a virtual environment in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "How-to programming question.",
+    "intent": "SNIPPET",
+    "reasoning": "User asks a standalone technical question about Python setup, unrelated to this product's codebase."
+  },
+  {
+    "id": "TC-048",
+    "message": "What's a mutex?",
+    "expected_intent": "SNIPPET",
+    "notes": "Concurrency concept question.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about a computer science concept unrelated to building or changing this product's codebase."
+  },
+  {
+    "id": "TC-049",
+    "message": "Explain microservices architecture",
+    "expected_intent": "SNIPPET",
+    "notes": "Software architecture concept, general, not about this product.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about software architecture concepts, unrelated to this product's codebase or a specific coding task."
+  },
+  {
+    "id": "TC-050",
+    "message": "What is idempotency in the context of APIs?",
+    "expected_intent": "SNIPPET",
+    "notes": "API design concept question.",
+    "intent": "CHAT",
+    "reasoning": "General software/API concept question unrelated to building or changing this product's codebase or a specific technical code snippet."
+  },
+  {
+    "id": "TC-051",
+    "message": "How does JWT authentication work?",
+    "expected_intent": "SNIPPET",
+    "notes": "General auth concept, not a request to change this product.",
+    "intent": "CHAT",
+    "reasoning": "General knowledge question about JWT authentication concepts, not a request to build or fix anything in this product's codebase."
+  },
+  {
+    "id": "TC-052",
+    "message": "What's the difference between SQL and NoSQL databases?",
+    "expected_intent": "SNIPPET",
+    "notes": "General database concept question.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about databases with no connection to this product's codebase or a specific coding task."
+  },
+  {
+    "id": "TC-053",
+    "message": "Explain what Docker is",
+    "expected_intent": "SNIPPET",
+    "notes": "General tooling concept question.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about Docker technology unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-054",
+    "message": "What is a design pattern?",
+    "expected_intent": "SNIPPET",
+    "notes": "Software engineering concept question.",
+    "intent": "CHAT",
+    "reasoning": "General knowledge question about software design patterns, not a request to build or fix this product's codebase or a self-contained programming task."
+  },
+  {
+    "id": "TC-055",
+    "message": "Explain the singleton pattern",
+    "expected_intent": "SNIPPET",
+    "notes": "Specific design-pattern concept question.",
+    "intent": "SNIPPET",
+    "reasoning": "Asks for an explanation and code example of a design pattern, a self-contained programming concept unrelated to this product's codebase."
+  },
+  {
+    "id": "TC-056",
+    "message": "What is recursion?",
+    "expected_intent": "SNIPPET",
+    "notes": "Fundamental CS concept, single bare-term question like the OOP bug case.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about a computer science concept unrelated to building or fixing this product's own codebase."
+  },
+  {
+    "id": "TC-057",
+    "message": "How do generators work in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "Language feature concept question.",
+    "intent": "SNIPPET",
+    "reasoning": "Straightforward technical programming question about Python generators, not about this product's codebase."
+  },
+  {
+    "id": "TC-058",
+    "message": "What is a hash table?",
+    "expected_intent": "SNIPPET",
+    "notes": "Data structure concept question.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about a computer science concept unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-059",
+    "message": "Explain CI/CD",
+    "expected_intent": "SNIPPET",
+    "notes": "General DevOps concept question.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge request about CI/CD concepts unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-060",
+    "message": "que es la programacion funcional?",
+    "expected_intent": "SNIPPET",
+    "notes": "Spanish variant of the functional-paradigm bug case; should stay SNIPPET regardless of language.",
+    "intent": "CHAT",
+    "reasoning": "General knowledge question about functional programming concepts, not a request to build/fix this product or write code."
+  },
+  {
+    "id": "TC-061",
+    "message": "que es la programacion orientada a objetos?",
+    "expected_intent": "SNIPPET",
+    "notes": "Spanish variant of the OOP bug case.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about a programming concept unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-062",
+    "message": "dame un script simple en Python para invertir una lista",
+    "expected_intent": "SNIPPET",
+    "notes": "Spanish code request unrelated to this product's codebase.",
+    "intent": "SNIPPET",
+    "reasoning": "User asks for a simple Python script to reverse a list—a standalone programming task unrelated to this product's codebase."
+  },
+  {
+    "id": "TC-063",
+    "message": "How does prompt caching work in the Anthropic API in general?",
+    "expected_intent": "SNIPPET",
+    "notes": "Ambiguous: general Anthropic API concept question, not a request to change this product's own code -- expected SNIPPET, contrast with TC-019/TC-015 which are scoped to this product.",
+    "intent": "CHAT",
+    "reasoning": "User asks a general-knowledge question about how a third-party API feature works, not a request to build or fix anything in this product's codebase."
+  },
+  {
+    "id": "TC-064",
+    "message": "What's the difference between a list and a tuple in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "Basic language concept question.",
+    "intent": "SNIPPET",
+    "reasoning": "A direct technical/programming question about Python fundamentals with no relation to this product's codebase."
+  },
+  {
+    "id": "TC-065",
+    "message": "Give me a quick example of a Python context manager",
+    "expected_intent": "SNIPPET",
+    "notes": "Direct code example request, self-contained.",
+    "intent": "SNIPPET",
+    "reasoning": "User is asking for a self-contained Python code example unrelated to this product's codebase."
+  },
+  {
+    "id": "TC-066",
+    "message": "What is a monad?",
+    "expected_intent": "SNIPPET",
+    "notes": "Advanced functional-programming concept, bare-term question like the paradigm bug case.",
+    "intent": "CHAT",
+    "reasoning": "General computer science/functional programming theory question unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-067",
+    "message": "What is immutability and why does it matter in functional programming?",
+    "expected_intent": "SNIPPET",
+    "notes": "Extended version of the functional-paradigm bug family.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about programming concepts unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-068",
+    "message": "How would I implement a binary search tree in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "Data structure implementation request.",
+    "intent": "SNIPPET",
+    "reasoning": "Self-contained programming request for a standalone data structure implementation with no connection to this product's codebase."
+  },
+  {
+    "id": "TC-069",
+    "message": "What's the difference between composition and inheritance?",
+    "expected_intent": "SNIPPET",
+    "notes": "OOP design-concept comparison, adjacent to the OOP bug case.",
+    "intent": "SNIPPET",
+    "reasoning": "Object-oriented programming concept question that's self-contained and technical, requiring a direct educational answer with examples."
+  },
+  {
+    "id": "TC-070",
+    "message": "How does the Model Context Protocol (MCP) work in general?",
+    "expected_intent": "SNIPPET",
+    "notes": "General technical explanation, not a request to integrate MCP into this product (contrast TC-021).",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about a technology concept unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-071",
+    "message": "hi",
+    "expected_intent": "CHAT",
+    "notes": "Greeting, no request.",
+    "intent": "CHAT",
+    "reasoning": "Casual greeting with no request to build, fix, or investigate anything."
+  },
+  {
+    "id": "TC-072",
+    "message": "hello there",
+    "expected_intent": "CHAT",
+    "notes": "Greeting.",
+    "intent": "CHAT",
+    "reasoning": "Greeting with no request to build, change, or fix anything."
+  },
+  {
+    "id": "TC-073",
+    "message": "what can you do?",
+    "expected_intent": "CHAT",
+    "notes": "Question about the assistant itself.",
+    "intent": "CHAT",
+    "reasoning": "User is asking about the assistant's capabilities and purpose, which is small talk/meta-question rather than a concrete feature request or code task."
+  },
+  {
+    "id": "TC-074",
+    "message": "how do you work?",
+    "expected_intent": "CHAT",
+    "notes": "Question about the assistant's own mechanics.",
+    "intent": "CHAT",
+    "reasoning": "User is asking how the assistant works—a foundational question about the assistant's purpose and capabilities, not a feature request or coding task."
+  },
+  {
+    "id": "TC-075",
+    "message": "good morning",
+    "expected_intent": "CHAT",
+    "notes": "Small talk.",
+    "intent": "CHAT",
+    "reasoning": "Simple greeting with no request to build, fix, or investigate anything."
+  },
+  {
+    "id": "TC-076",
+    "message": "thanks!",
+    "expected_intent": "CHAT",
+    "notes": "Acknowledgement, no request.",
+    "intent": "CHAT",
+    "reasoning": "User is offering a simple thank-you with no request to build, fix, or investigate anything."
+  },
+  {
+    "id": "TC-077",
+    "message": "who are you?",
+    "expected_intent": "CHAT",
+    "notes": "Question about the assistant's identity.",
+    "intent": "CHAT",
+    "reasoning": "User is asking about the assistant's identity and purpose—a greeting/introductory question with no coding or feature request."
+  },
+  {
+    "id": "TC-078",
+    "message": "can you build features for me?",
+    "expected_intent": "CHAT",
+    "notes": "Meta question about capability, not an actual concrete request yet.",
+    "intent": "CHAT",
+    "reasoning": "Greetings/clarification question about what the assistant can do, not a concrete request to build something specific."
+  },
+  {
+    "id": "TC-079",
+    "message": "what's your name?",
+    "expected_intent": "CHAT",
+    "notes": "Small talk about identity.",
+    "intent": "CHAT",
+    "reasoning": "Greeting/small talk asking about the assistant's identity, with no request to build, fix, or investigate anything."
+  },
+  {
+    "id": "TC-080",
+    "message": "buenos dias",
+    "expected_intent": "CHAT",
+    "notes": "Spanish greeting.",
+    "intent": "CHAT",
+    "reasoning": "Greeting with no request to build, change, or investigate anything."
+  },
+  {
+    "id": "TC-081",
+    "message": "hola, como estas?",
+    "expected_intent": "CHAT",
+    "notes": "Spanish small talk.",
+    "intent": "CHAT",
+    "reasoning": "Simple greeting with no request to build, fix, or investigate anything related to this product or code."
+  },
+  {
+    "id": "TC-082",
+    "message": "que puedes hacer?",
+    "expected_intent": "CHAT",
+    "notes": "Spanish question about assistant capabilities.",
+    "intent": "CHAT",
+    "reasoning": "User asks what this assistant can do, a meta question about capabilities rather than a request to build or code."
+  },
+  {
+    "id": "TC-083",
+    "message": "are you an AI?",
+    "expected_intent": "CHAT",
+    "notes": "Question about the assistant itself.",
+    "intent": "CHAT",
+    "reasoning": "Small talk question about what the assistant is, with no request to build features or fix code."
+  },
+  {
+    "id": "TC-084",
+    "message": "thank you for the help",
+    "expected_intent": "CHAT",
+    "notes": "Closing acknowledgement.",
+    "intent": "CHAT",
+    "reasoning": "User is expressing gratitude with no specific request or follow-up work to plan or build."
+  },
+  {
+    "id": "TC-085",
+    "message": "how does the ticket pipeline work?",
+    "expected_intent": "CHAT",
+    "notes": "Question about how THIS assistant/pipeline functions, not a request to change anything.",
+    "intent": "CHAT",
+    "reasoning": "User is asking about how this assistant and its workflow operate, which is small talk / meta-question about the tool itself."
+  },
+  {
+    "id": "TC-086",
+    "message": "what is this assistant for?",
+    "expected_intent": "CHAT",
+    "notes": "Meta question about the assistant's purpose.",
+    "intent": "CHAT",
+    "reasoning": "User is asking about the assistant's purpose and capabilities, which is a small-talk/product-information question."
+  },
+  {
+    "id": "TC-087",
+    "message": "nice to meet you",
+    "expected_intent": "CHAT",
+    "notes": "Small talk.",
+    "intent": "CHAT",
+    "reasoning": "Greeting with no request to build, fix, or investigate anything."
+  },
+  {
+    "id": "TC-088",
+    "message": "bye",
+    "expected_intent": "CHAT",
+    "notes": "Farewell, no request.",
+    "intent": "CHAT",
+    "reasoning": "A simple farewell with no request to build, fix, or investigate anything in this product."
+  },
+  {
+    "id": "TC-089",
+    "message": "do you remember what we talked about earlier?",
+    "expected_intent": "CHAT",
+    "notes": "Question about the assistant's own memory/behavior.",
+    "intent": "CHAT",
+    "reasoning": "User is asking about prior conversation history, but this is the start of a new conversation with no prior messages."
+  },
+  {
+    "id": "TC-090",
+    "message": "can you plan and build things automatically or do I need to approve each step?",
+    "expected_intent": "CHAT",
+    "notes": "Question about how the assistant/workflow operates, not a concrete ticket.",
+    "intent": "CHAT",
+    "reasoning": "User is asking how this assistant works and what its capabilities are—a question about the tool itself, not a request to build or code."
+  },
+  {
+    "id": "TC-091",
+    "message": "what is the price of a Big Mac in Mexico?",
+    "expected_intent": "CHAT",
+    "notes": "Example straight from the classifier prompt: off-topic general knowledge, must be declined, not answered.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about fast food pricing unrelated to coding or this product's codebase."
+  },
+  {
+    "id": "TC-092",
+    "message": "de que se trata el libro dimelo bajito",
+    "expected_intent": "CHAT",
+    "notes": "Example straight from the classifier prompt: Spanish off-topic question, must get a Spanish decline.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about a book unrelated to coding or this product's codebase."
+  },
+  {
+    "id": "TC-093",
+    "message": "what's the weather like today?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic general knowledge, must be declined.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question unrelated to coding, software, or this product's features."
+  },
+  {
+    "id": "TC-094",
+    "message": "who won the world cup in 2022?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic trivia, must be declined without the actual answer.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge trivia question unrelated to coding, software, or this product's codebase."
+  },
+  {
+    "id": "TC-095",
+    "message": "give me a recipe for pasta carbonara",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic everyday question, must be declined, no recipe content.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge request (cooking recipe) unrelated to coding, software, or this product."
+  },
+  {
+    "id": "TC-096",
+    "message": "what's the capital of France?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic trivia.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge trivia question unrelated to coding, software engineering, or this product's codebase."
+  },
+  {
+    "id": "TC-097",
+    "message": "how many calories are in an avocado?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic nutrition question.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about nutrition that has nothing to do with coding or this product's codebase."
+  },
+  {
+    "id": "TC-098",
+    "message": "what's a good workout routine for beginners?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic fitness question.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about fitness/health with no connection to coding, software, or this product."
+  },
+  {
+    "id": "TC-099",
+    "message": "tell me a joke",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic entertainment request.",
+    "intent": "CHAT",
+    "reasoning": "User is asking for a joke, which is small talk and general entertainment unrelated to coding or this product's features."
+  },
+  {
+    "id": "TC-100",
+    "message": "who is the president of the US right now?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic current-events question, must be declined without answering.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge trivia question unrelated to coding, this product, or software engineering."
+  },
+  {
+    "id": "TC-101",
+    "message": "what's the best sci-fi movie of all time?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic opinion/trivia question.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about movies unrelated to coding or this product's codebase."
+  },
+  {
+    "id": "TC-102",
+    "message": "cuanto cuesta un iPhone 15?",
+    "expected_intent": "CHAT",
+    "notes": "Spanish off-topic pricing question.",
+    "intent": "CHAT",
+    "reasoning": "User asks about iPhone 15 pricing, which is a general-knowledge/consumer question unrelated to coding or this product."
+  },
+  {
+    "id": "TC-103",
+    "message": "recomiendame un libro de historia",
+    "expected_intent": "CHAT",
+    "notes": "Spanish off-topic recommendation request.",
+    "intent": "CHAT",
+    "reasoning": "User asks for a book recommendation on history, which is a general-knowledge question unrelated to coding or this product's codebase."
+  },
+  {
+    "id": "TC-104",
+    "message": "what time zone is Tokyo in?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic factual lookup.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about geography/time zones with no connection to coding or product features."
+  },
+  {
+    "id": "TC-105",
+    "message": "how deep is the Mariana Trench?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic trivia, matches user's own known interest in deep-sea topics but still out of scope for the bot.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge trivia question about geography unrelated to coding, software, or this product."
+  },
+  {
+    "id": "TC-106",
+    "message": "what's the stock price of Apple right now?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic real-time financial question.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about stock prices unrelated to coding, software development, or this product's codebase."
+  },
+  {
+    "id": "TC-107",
+    "message": "translate 'good morning' to French",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic translation request unrelated to code.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge translation request unrelated to coding, software, or this product's features."
+  },
+  {
+    "id": "TC-108",
+    "message": "how do I train for a marathon?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic fitness/lifestyle question.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about fitness/athletics with no connection to coding, software, or this product."
+  },
+  {
+    "id": "TC-109",
+    "message": "quien gano el partido de futbol ayer?",
+    "expected_intent": "CHAT",
+    "notes": "Spanish off-topic sports question.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about sports that has nothing to do with coding or this product's codebase."
+  },
+  {
+    "id": "TC-110",
+    "message": "how much gasoline-to-oil ratio do I need for a 2-stroke engine?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic everyday/practical question, not programming-related, must be declined even though it's a 'how much' question with a numeric answer.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about 2-stroke engine maintenance with no relation to coding or this product's codebase."
+  },
+  {
+    "id": "TC-111",
+    "message": "how many grams of pasta should I cook per person?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic everyday cooking question, must be declined without giving the gram figure.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge cooking question unrelated to code, software, or this product's codebase."
+  },
+  {
+    "id": "TC-112",
+    "message": "what's a good name for my cat?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic personal/lifestyle question.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic general-knowledge question about pet naming that has no connection to coding, software, or this product."
+  },
+  {
+    "id": "TC-113",
+    "history": [
+      {
+        "role": "user",
+        "content": "Add an endpoint that exports SQL query results as CSV"
+      },
+      {
+        "role": "assistant",
+        "content": "Sure, drafting a plan for that now."
+      }
+    ],
+    "message": "by the way, what's the weather like in Queretaro today?",
+    "expected_intent": "CHAT",
+    "notes": "Off-topic aside mid-ticket-conversation; history is TICKET context but current message is unrelated trivia and must still be declined, not answered and not treated as TICKET.",
+    "intent": "CHAT",
+    "reasoning": "Off-topic weather query unrelated to coding, product features, or engineering work."
+  },
+  {
+    "id": "TC-114",
+    "history": [
+      {
+        "role": "user",
+        "content": "What is OOP?"
+      },
+      {
+        "role": "assistant",
+        "content": "OOP is a programming paradigm based on objects that bundle state and behavior..."
+      }
+    ],
+    "message": "and what's the functional paradigm about?",
+    "expected_intent": "SNIPPET",
+    "notes": "Follow-up in the same bug family as TC-026/TC-027; should stay SNIPPET given prior SNIPPET context.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about programming paradigms unrelated to building or fixing this product's codebase."
+  },
+  {
+    "id": "TC-115",
+    "message": "what is a variable?",
+    "expected_intent": "SNIPPET",
+    "notes": "Very basic bare-term programming question; edge case for over-triggering the CHAT off-topic decline on trivial phrasing.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about programming concepts unrelated to building or modifying this product's codebase."
+  }
+]

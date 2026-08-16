@@ -1,0 +1,402 @@
+[
+  {
+    "id": "TC2-001",
+    "message": "What's the difference between SQL and NoSQL databases?",
+    "expected_intent": "SNIPPET",
+    "notes": "The exact case that just failed -- regression check.",
+    "intent": "SNIPPET",
+    "reasoning": "Technical/software concept comparison question about database types; this is a programming/CS topic, not general trivia."
+  },
+  {
+    "id": "TC2-002",
+    "message": "What's the difference between REST and GraphQL?",
+    "expected_intent": "SNIPPET",
+    "notes": "Same comparison-phrasing pattern, different topic.",
+    "intent": "SNIPPET",
+    "reasoning": "Technical/software architecture question about two programming paradigms; this is a core CS/software concept comparison, not general trivia."
+  },
+  {
+    "id": "TC2-003",
+    "message": "What's the difference between a process and a thread?",
+    "expected_intent": "SNIPPET",
+    "notes": "OS/concurrency comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "Asks to explain the difference between two fundamental software/CS concepts, which is a programming/systems knowledge question."
+  },
+  {
+    "id": "TC2-004",
+    "message": "What's the difference between TCP and UDP?",
+    "expected_intent": "SNIPPET",
+    "notes": "Networking protocol comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "Asks about a networking protocol comparison, which is a fundamental software/CS concept; this is a technical educational question, not general trivia."
+  },
+  {
+    "id": "TC2-005",
+    "message": "What's the difference between authentication and authorization?",
+    "expected_intent": "SNIPPET",
+    "notes": "Security concept comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "Asking to explain the conceptual difference between two fundamental software/security concepts; this is a programming/CS education question, not general trivia."
+  },
+  {
+    "id": "TC2-006",
+    "message": "What's the difference between a list and a set in Python?",
+    "expected_intent": "SNIPPET",
+    "notes": "Language data-structure comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "Programming/CS concept question asking to compare two Python data structures—core software engineering knowledge, not general trivia."
+  },
+  {
+    "id": "TC2-007",
+    "message": "What's the difference between unit tests and integration tests?",
+    "expected_intent": "SNIPPET",
+    "notes": "Testing concept comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "A comparison of two software-engineering/testing concepts; despite 'difference between X and Y' phrasing, this is a programming/CS question, not general trivia."
+  },
+  {
+    "id": "TC2-008",
+    "message": "What's the difference between horizontal and vertical scaling?",
+    "expected_intent": "SNIPPET",
+    "notes": "Systems/architecture comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "Asking about a software architecture/CS concept comparison; 'difference between X and Y' for technical topics (scaling strategies) is a SNIPPET, not general trivia."
+  },
+  {
+    "id": "TC2-009",
+    "message": "What's the difference between a mutex and a semaphore?",
+    "expected_intent": "SNIPPET",
+    "notes": "Concurrency primitives comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "Asks to explain the difference between two programming/concurrency concepts -- a technical CS question that belongs in SNIPPET territory."
+  },
+  {
+    "id": "TC2-010",
+    "message": "What's the difference between git merge and git rebase?",
+    "expected_intent": "SNIPPET",
+    "notes": "Version control comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "Asking for the difference between two git operations—a technical/software engineering concept, not general trivia or off-topic content."
+  },
+  {
+    "id": "TC2-011",
+    "message": "What's the difference between == and === in JavaScript?",
+    "expected_intent": "SNIPPET",
+    "notes": "Language semantics comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "Technical question comparing two JavaScript operators—a programming concept, not general trivia."
+  },
+  {
+    "id": "TC2-012",
+    "message": "What's the difference between a stack and a queue?",
+    "expected_intent": "SNIPPET",
+    "notes": "Data structure comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "Technical CS/programming concept question about data structures; not general trivia."
+  },
+  {
+    "id": "TC2-013",
+    "message": "What's the difference between synchronous and asynchronous programming?",
+    "expected_intent": "SNIPPET",
+    "notes": "Core programming-model comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "User is asking to explain a core programming/software engineering concept, which is a technical knowledge question."
+  },
+  {
+    "id": "TC2-014",
+    "message": "What's the difference between a compiler and an interpreter?",
+    "expected_intent": "SNIPPET",
+    "notes": "Language-tooling comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "This question asks for an explanation of two core programming/CS concepts, which is a technical/software-engineering topic even though phrased as a comparison."
+  },
+  {
+    "id": "TC2-015",
+    "message": "cual es la diferencia entre SQL y NoSQL?",
+    "expected_intent": "SNIPPET",
+    "notes": "Spanish-language variant of the exact failing case.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/software engineering concept comparison question about database types; belongs in SNIPPET category regardless of 'difference between' phrasing."
+  },
+  {
+    "id": "TC2-016",
+    "message": "What is an index in a database?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare-definition tech question, database domain (adjacent to the SQL/NoSQL failure).",
+    "intent": "SNIPPET",
+    "reasoning": "Technical/CS concept question about databases, a programming subject -- belongs in SNIPPET even though phrased as 'what is X'"
+  },
+  {
+    "id": "TC2-017",
+    "message": "What is a foreign key?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare database-concept definition.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/CS concept question about databases, which falls under programming knowledge rather than general trivia."
+  },
+  {
+    "id": "TC2-018",
+    "message": "What is normalization in databases?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare database-concept definition.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/software concept question about database design -- falls under programming/CS knowledge, not general trivia."
+  },
+  {
+    "id": "TC2-019",
+    "message": "What is an ORM?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare tooling-concept definition.",
+    "intent": "SNIPPET",
+    "reasoning": "A programming/software-engineering concept question asking for explanation of Object-Relational Mapping, which is a core CS/software topic."
+  },
+  {
+    "id": "TC2-020",
+    "message": "What is a webhook?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare tech-concept definition.",
+    "intent": "SNIPPET",
+    "reasoning": "Technical/software concept question about a programming topic, not a general-knowledge trivia question; falls under SNIPPET category."
+  },
+  {
+    "id": "TC2-021",
+    "message": "What is caching?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare tech-concept definition.",
+    "intent": "SNIPPET",
+    "reasoning": "A fundamental computer science and software engineering concept question about caching mechanisms, not specific to this product's codebase."
+  },
+  {
+    "id": "TC2-022",
+    "message": "What is a load balancer?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare infra-concept definition.",
+    "intent": "SNIPPET",
+    "reasoning": "This is a technical/software-engineering concept question asking for an explanation of a foundational networking and systems design topic, which falls under programming/CS knowledge."
+  },
+  {
+    "id": "TC2-023",
+    "message": "What is an API gateway?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare architecture-concept definition.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/software-engineering concept question about API gateways, which is a programming and architecture topic, not general trivia."
+  },
+  {
+    "id": "TC2-024",
+    "message": "What is a race condition?",
+    "expected_intent": "SNIPPET",
+    "notes": "Bare concurrency-concept definition.",
+    "intent": "SNIPPET",
+    "reasoning": "A programming/software concept question about concurrency, which is within scope for technical explanations despite the 'what is' phrasing."
+  },
+  {
+    "id": "TC2-025",
+    "message": "que es un indice en una base de datos?",
+    "expected_intent": "SNIPPET",
+    "notes": "Spanish bare-definition database question.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/CS concept question about database indexes—a core software engineering topic—belongs in SNIPPET regardless of phrasing."
+  },
+  {
+    "id": "TC2-026",
+    "message": "How does database indexing work?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"How does X work\" phrasing, database domain.",
+    "intent": "SNIPPET",
+    "reasoning": "A core software/CS concept question about database indexing mechanics -- a technical topic even though phrased as 'how does X work'."
+  },
+  {
+    "id": "TC2-027",
+    "message": "How does a hash table handle collisions?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"How does X work\" phrasing, data structures.",
+    "intent": "SNIPPET",
+    "reasoning": "Asks to explain a computer science/programming concept (hash table collision handling), which is a technical/software-engineering topic requiring a SNIPPET-style answer with explanation."
+  },
+  {
+    "id": "TC2-028",
+    "message": "How does OAuth2 work?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"How does X work\" phrasing, auth protocol.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/software concept question asking to explain how a programming/software protocol works—this is a SNIPPET, not general trivia."
+  },
+  {
+    "id": "TC2-029",
+    "message": "How does connection pooling work?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"How does X work\" phrasing, database/infra.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical software/CS concept question about connection pooling, which is a programming and database architecture topic, not general trivia."
+  },
+  {
+    "id": "TC2-030",
+    "message": "How does a load balancer decide where to route traffic?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"How does X work\" phrasing, infra.",
+    "intent": "SNIPPET",
+    "reasoning": "Technical/software engineering concept question about how load balancers work—a core CS/architecture topic, not general trivia."
+  },
+  {
+    "id": "TC2-031",
+    "message": "How does DNS resolution work?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"How does X work\" phrasing, networking.",
+    "intent": "SNIPPET",
+    "reasoning": "A fundamental software/networking concept question that belongs in SNIPPET, not general trivia."
+  },
+  {
+    "id": "TC2-032",
+    "message": "How does garbage collection work in Java?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"How does X work\" phrasing, language runtime.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/software concept question about Java's garbage collection mechanism; this is a programming/CS topic, not general trivia."
+  },
+  {
+    "id": "TC2-033",
+    "message": "How does a B-tree index improve query performance?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"How does X work\" phrasing, database internals.",
+    "intent": "SNIPPET",
+    "reasoning": "Asks how a data structure/database concept works; this is a programming/software-engineering technical question, not general trivia."
+  },
+  {
+    "id": "TC2-034",
+    "message": "How does HTTPS actually secure a connection?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"How does X work\" phrasing, security/networking.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/software concept question about cryptography and protocols, which falls squarely under programming/CS knowledge regardless of phrasing."
+  },
+  {
+    "id": "TC2-035",
+    "message": "como funciona el connection pooling en una base de datos?",
+    "expected_intent": "SNIPPET",
+    "notes": "Spanish \"how does X work\" phrasing, database domain.",
+    "intent": "SNIPPET",
+    "reasoning": "How connection pooling works in databases is a software/CS technical concept question, not general trivia or off-topic knowledge."
+  },
+  {
+    "id": "TC2-036",
+    "message": "Explain database sharding",
+    "expected_intent": "SNIPPET",
+    "notes": "\"Explain X\" phrasing, database/scaling.",
+    "intent": "SNIPPET",
+    "reasoning": "Technical/CS concept explanation request about database architecture — a programming/software topic, not general trivia or off-topic."
+  },
+  {
+    "id": "TC2-037",
+    "message": "Explain the CAP theorem",
+    "expected_intent": "SNIPPET",
+    "notes": "\"Explain X\" phrasing, distributed systems.",
+    "intent": "SNIPPET",
+    "reasoning": "Asking for an explanation of a core distributed systems concept, which is software/CS knowledge—not general trivia or off-topic."
+  },
+  {
+    "id": "TC2-038",
+    "message": "Explain ACID properties in databases",
+    "expected_intent": "SNIPPET",
+    "notes": "\"Explain X\" phrasing, database theory.",
+    "intent": "SNIPPET",
+    "reasoning": "Asking for explanation of a database/CS concept (ACID properties), which is a programming/software-engineering topic despite the phrasing \"explain X\"."
+  },
+  {
+    "id": "TC2-039",
+    "message": "Explain eventual consistency",
+    "expected_intent": "SNIPPET",
+    "notes": "\"Explain X\" phrasing, distributed systems.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/software concept question about database and distributed systems design patterns, even phrased as 'explain X' — this is a programming/CS topic, not general trivia."
+  },
+  {
+    "id": "TC2-040",
+    "message": "Explain what a message queue is used for",
+    "expected_intent": "SNIPPET",
+    "notes": "\"Explain X\" phrasing, architecture.",
+    "intent": "SNIPPET",
+    "reasoning": "This is a foundational software/CS concept question asking for an explanation of a technical architectural pattern (message queues), which falls under SNIPPET even though phrased as 'explain X'."
+  },
+  {
+    "id": "TC2-041",
+    "message": "Explain the pros and cons of microservices vs a monolith",
+    "expected_intent": "SNIPPET",
+    "notes": "\"Pros and cons of X vs Y\" phrasing -- another shape of the same comparison-question pattern.",
+    "intent": "SNIPPET",
+    "reasoning": "Compares two software architecture paradigms (microservices vs monolith), a core CS/software-engineering concept regardless of phrasing."
+  },
+  {
+    "id": "TC2-042",
+    "message": "Pros and cons of using MongoDB vs PostgreSQL for this kind of workload, in general?",
+    "expected_intent": "SNIPPET",
+    "notes": "\"Pros and cons of X vs Y\" phrasing, database domain, phrased generically (not about this product's own DB).",
+    "intent": "SNIPPET",
+    "reasoning": "Comparing technical/software concepts (MongoDB vs PostgreSQL) — this is a programming/database architecture question, not general trivia."
+  },
+  {
+    "id": "TC2-043",
+    "message": "explica la diferencia entre autenticacion y autorizacion",
+    "expected_intent": "SNIPPET",
+    "notes": "Spanish \"explain the difference\" phrasing, security domain.",
+    "intent": "SNIPPET",
+    "reasoning": "Asks to explain the difference between two software/security concepts (authentication vs authorization), which is a programming/CS topic regardless of phrasing language."
+  },
+  {
+    "id": "TC2-044",
+    "message": "What's the difference between an interface and an abstract class?",
+    "expected_intent": "SNIPPET",
+    "notes": "OOP comparison, adjacent family to the original OOP bug case.",
+    "intent": "SNIPPET",
+    "reasoning": "Compares two programming/CS concepts (interfaces vs abstract classes) -- a technical software-engineering question, not general trivia or off-topic."
+  },
+  {
+    "id": "TC2-045",
+    "message": "What's the difference between a shallow copy and a deep copy?",
+    "expected_intent": "SNIPPET",
+    "notes": "Language-semantics comparison.",
+    "intent": "SNIPPET",
+    "reasoning": "A technical/software engineering concept comparison about Python (or programming generally) — not general trivia; fundamental to programming and data structures."
+  },
+  {
+    "id": "TC2-046",
+    "message": "What's the difference between iOS and Android?",
+    "expected_intent": "CHAT",
+    "notes": "NEGATIVE CONTROL: comparison phrasing but the subject (consumer OS choice, not programming/CS) is general-knowledge, so it must stay CHAT -- guards against the fix overcorrecting into treating every 'difference between' question as SNIPPET.",
+    "intent": "CHAT",
+    "reasoning": "A comparison of two mobile operating systems—not a programming/software-engineering concept but general technology trivia."
+  },
+  {
+    "id": "TC2-047",
+    "message": "What's the difference between cardio and strength training?",
+    "expected_intent": "CHAT",
+    "notes": "NEGATIVE CONTROL: comparison phrasing, fitness topic, off-topic and must be declined.",
+    "intent": "CHAT",
+    "reasoning": "Asking about the difference between types of physical exercise, which is general health/fitness knowledge unrelated to programming, software, or this product."
+  },
+  {
+    "id": "TC2-048",
+    "message": "What's the difference between a latte and a cappuccino?",
+    "expected_intent": "CHAT",
+    "notes": "NEGATIVE CONTROL: comparison phrasing, coffee/food topic, off-topic.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about coffee beverages unrelated to coding, software, or this product."
+  },
+  {
+    "id": "TC2-049",
+    "message": "How does a car's turbocharger work?",
+    "expected_intent": "CHAT",
+    "notes": "NEGATIVE CONTROL: \"how does X work\" phrasing but the subject (automotive) isn't programming/CS, so it must stay CHAT.",
+    "intent": "CHAT",
+    "reasoning": "General-knowledge question about how a mechanical/automotive system works—not a programming, software engineering, or CS concept, so it's off-topic."
+  },
+  {
+    "id": "TC2-050",
+    "message": "Explain how tides work",
+    "expected_intent": "CHAT",
+    "notes": "NEGATIVE CONTROL: \"explain X\" phrasing, natural-science topic unrelated to code/software, must stay CHAT and be declined.",
+    "intent": "CHAT",
+    "reasoning": "A general-knowledge question about earth science/physics that has no connection to programming, software engineering, or this product."
+  }
+]

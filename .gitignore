@@ -6,6 +6,9 @@ bot_env/
 __pycache__/
 *.pyc
 
+# Tests
+/tests
+
 # env files
 .env
 

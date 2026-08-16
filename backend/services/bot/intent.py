@@ -66,7 +66,25 @@ class Intent:
       linked list in Python". Nothing to plan or review here; just answer
       directly, with working code when code was asked for. Reserved for
       programming/software-engineering questions only -- general-knowledge
-      questions (below) are CHAT, not this, even if they'd be quick to answer.
+      questions (below) are CHAT, not this, even if they'd be quick to answer. For example:
+        (a) What is OOP? -> intent: "SNIPPET" (a programming/CS
+            concept question, even asked as a bare "what is X", belongs here -- it's
+            not general trivia).
+        (b) What is the capital of France? -> intent: "CHAT" (not a programming/CS
+            concept, this is general trivia).
+        (c) How do I reverse a linked list in Python? -> intent: "SNIPPET" (a programming question,
+            even if it's a "how do I" phrasing, belongs here -- it's not general trivia).
+        (d) What's the difference between SQL and NoSQL databases? -> intent: "SNIPPET"
+        (a technical/software concept comparison -- "difference between X and Y"
+        phrasing does NOT make it general trivia; it's still SNIPPET whenever
+        X and Y are programming/software/CS concepts).
+        Rule of thumb:
+        if the subject matter itself is programming, software
+        engineering, or CS (languages, frameworks, databases, architecture,
+        algorithms, protocols, tooling, etc.), it's SNIPPET regardless of whether
+        the question is phrased as "what is X", "difference between X and Y",
+        "how does X work", or "explain X". CHAT(b) is reserved for subjects that
+        aren't about code/software at all.
     - "CHAT": everything else. This covers two very different situations that
       share a label but NOT a reply style:
         (a) greetings, small talk, or questions about what this assistant can
@@ -125,8 +143,8 @@ class Intent:
     _schema = {
         "type": "object",
         "properties": {
-            "intent": {"type": "string", "enum": ["TICKET", "SNIPPET", "CHAT"]},
             "reasoning": {"type": "string"},
+            "intent": {"type": "string", "enum": ["TICKET", "SNIPPET", "CHAT"]},
             "reply": {"type": "string"},
         },
         "required": ["intent", "reasoning", "reply"],
