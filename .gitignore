@@ -7,7 +7,7 @@ __pycache__/
 *.pyc
 
 # Tests
-/tests
+tests/
 
 # env files
 .env
